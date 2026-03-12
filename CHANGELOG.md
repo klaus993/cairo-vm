@@ -18,6 +18,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 * fix: Fix off-by-one comparisons in `split_int`, `assert_250_bit`, and `sqrt` hints [#2348](https://github.com/lambdaclass/cairo-vm/pull/2348)
 
+* feat: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
+
 #### [3.2.0] - 2026-3-3
 
 * fix: Change extended_resource_counter entry from u32 to usize [#2349](https://github.com/lambdaclass/cairo-vm/pull/2349)
