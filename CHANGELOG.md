@@ -23,6 +23,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 * chore: Add unit tests for `CairoFunctionRunner`, `CairoArg` conversions/macros, and `MaybeRelocatable` conversion macro coverage [#2354](https://github.com/lambdaclass/cairo-vm/pull/2354)
 * feat: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
 
+* test: Add `tests_cairo` utilities and a math Cairo test suite, including `assert_mr_eq!` and structured error helpers [#2353](https://github.com/lambdaclass/cairo-vm/pull/2353)
+
 #### [3.2.0] - 2026-3-3
 
 * fix: Change extended_resource_counter entry from u32 to usize [#2349](https://github.com/lambdaclass/cairo-vm/pull/2349)
