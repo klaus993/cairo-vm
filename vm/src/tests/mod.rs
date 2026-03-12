@@ -1,8 +1,16 @@
+#[cfg(feature = "cairo-1-hints")]
+use crate::hint_processor::hint_processor_definition::HintProcessor;
 use crate::types::layout_name::LayoutName;
 #[cfg(feature = "cairo-1-hints")]
 use crate::vm::errors::cairo_run_errors::CairoRunError;
 #[cfg(feature = "cairo-1-hints")]
+use crate::vm::errors::vm_errors::VirtualMachineError;
+#[cfg(feature = "cairo-1-hints")]
+use crate::vm::errors::vm_exception::VmException;
+#[cfg(feature = "cairo-1-hints")]
 use crate::vm::runners::cairo_runner::RunResources;
+#[cfg(feature = "cairo-1-hints")]
+use crate::vm::security::verify_secure_runner;
 use crate::vm::trace::trace_entry::RelocatedTraceEntry;
 #[cfg(feature = "cairo-1-hints")]
 use crate::Felt252;
@@ -14,6 +22,10 @@ use crate::{
 };
 #[cfg(feature = "cairo-1-hints")]
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo-1-hints")]
+use num_bigint::BigUint;
+#[cfg(feature = "cairo-1-hints")]
+use num_traits::Num;
 
 use crate::{
     cairo_run::{cairo_run, CairoRunConfig},
@@ -92,6 +104,36 @@ fn run_program(
 }
 
 #[cfg(feature = "cairo-1-hints")]
+#[allow(clippy::result_large_err)]
+fn run_from_entrypoint_for_test(
+    runner: &mut CairoRunner,
+    entrypoint: usize,
+    args: &[&CairoArg],
+    verify_secure: bool,
+    program_segment_size: Option<usize>,
+    hint_processor: &mut dyn HintProcessor,
+) -> Result<(), CairoRunError> {
+    let stack = args
+        .iter()
+        .map(|arg| runner.vm.segments.gen_cairo_arg(arg))
+        .collect::<Result<Vec<MaybeRelocatable>, VirtualMachineError>>()?;
+    let return_fp = MaybeRelocatable::from(0_i64);
+    let end = runner.initialize_function_entrypoint(entrypoint, stack, return_fp)?;
+
+    runner.initialize_vm()?;
+    runner
+        .run_until_pc(end, hint_processor)
+        .map_err(|err| VmException::from_vm_error(runner, err))?;
+    runner.end_run(true, false, hint_processor, false)?;
+
+    if verify_secure {
+        verify_secure_runner(runner, false, program_segment_size)?;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "cairo-1-hints")]
 // Runs a contract entrypoint with given arguments and checks its return values
 // Doesn't use a syscall_handler
 fn run_cairo_1_entrypoint(
@@ -141,8 +183,13 @@ fn run_cairo_1_entrypoint(
     // Other args
 
     // Load builtin costs
-    let builtin_costs: Vec<MaybeRelocatable> =
-        vec![0.into(), 0.into(), 0.into(), 0.into(), 0.into()];
+    let builtin_costs: Vec<MaybeRelocatable> = vec![
+        0_i64.into(),
+        0_i64.into(),
+        0_i64.into(),
+        0_i64.into(),
+        0_i64.into(),
+    ];
     let builtin_costs_ptr = runner.vm.add_memory_segment();
     runner
         .vm
@@ -152,8 +199,12 @@ fn run_cairo_1_entrypoint(
     // Load extra data
     let core_program_end_ptr =
         (runner.program_base.unwrap() + runner.program.shared_program_data.data.len()).unwrap();
-    let program_extra_data: Vec<MaybeRelocatable> =
-        vec![0x208B7FFF7FFF7FFE.into(), builtin_costs_ptr.into()];
+    let program_extra_data: Vec<MaybeRelocatable> = vec![
+        BigUint::from_str_radix("208B7FFF7FFF7FFE", 16)
+            .unwrap()
+            .into(),
+        builtin_costs_ptr.into(),
+    ];
     runner
         .vm
         .load_data(core_program_end_ptr, &program_extra_data)
@@ -177,15 +228,17 @@ fn run_cairo_1_entrypoint(
 
     // Run contract entrypoint
 
-    runner
-        .run_from_entrypoint(
-            entrypoint_offset,
-            &entrypoint_args,
-            true,
-            Some(runner.program.shared_program_data.data.len() + program_extra_data.len()),
-            &mut hint_processor,
-        )
-        .unwrap();
+    let program_segment_size =
+        runner.program.shared_program_data.data.len() + program_extra_data.len();
+    run_from_entrypoint_for_test(
+        &mut runner,
+        entrypoint_offset,
+        &entrypoint_args,
+        true,
+        Some(program_segment_size),
+        &mut hint_processor,
+    )
+    .unwrap();
 
     // Check return values
     let return_values = runner.vm.get_return_values(5).unwrap();
@@ -248,8 +301,13 @@ fn run_cairo_1_entrypoint_with_run_resources(
     // Other args
 
     // Load builtin costs
-    let builtin_costs: Vec<MaybeRelocatable> =
-        vec![0.into(), 0.into(), 0.into(), 0.into(), 0.into()];
+    let builtin_costs: Vec<MaybeRelocatable> = vec![
+        0_i64.into(),
+        0_i64.into(),
+        0_i64.into(),
+        0_i64.into(),
+        0_i64.into(),
+    ];
     let builtin_costs_ptr = runner.vm.add_memory_segment();
     runner
         .vm
@@ -259,8 +317,12 @@ fn run_cairo_1_entrypoint_with_run_resources(
     // Load extra data
     let core_program_end_ptr =
         (runner.program_base.unwrap() + runner.program.shared_program_data.data.len()).unwrap();
-    let program_extra_data: Vec<MaybeRelocatable> =
-        vec![0x208B7FFF7FFF7FFE.into(), builtin_costs_ptr.into()];
+    let program_extra_data: Vec<MaybeRelocatable> = vec![
+        BigUint::from_str_radix("208B7FFF7FFF7FFE", 16)
+            .unwrap()
+            .into(),
+        builtin_costs_ptr.into(),
+    ];
     runner
         .vm
         .load_data(core_program_end_ptr, &program_extra_data)
@@ -284,11 +346,14 @@ fn run_cairo_1_entrypoint_with_run_resources(
 
     // Run contract entrypoint
 
-    runner.run_from_entrypoint(
+    let program_segment_size =
+        runner.program.shared_program_data.data.len() + program_extra_data.len();
+    run_from_entrypoint_for_test(
+        &mut runner,
         entrypoint_offset,
         &entrypoint_args,
         true,
-        Some(runner.program.shared_program_data.data.len() + program_extra_data.len()),
+        Some(program_segment_size),
         hint_processor,
     )?;
 
