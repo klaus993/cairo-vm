@@ -123,17 +123,15 @@ fn run_cairo_1_entrypoint(
 
     let program_builtins = get_casm_contract_builtins(&contract_class, entrypoint_offset);
     function_runner
-        .runner
         .initialize_function_runner_cairo_1(&program_builtins)
         .unwrap();
 
     // Implicit Args
-    let syscall_segment = MaybeRelocatable::from(function_runner.runner.vm.add_memory_segment());
+    let syscall_segment = MaybeRelocatable::from(function_runner.vm.add_memory_segment());
 
-    let builtins = function_runner.runner.get_program_builtins();
+    let builtins = function_runner.get_program_builtins();
 
     let builtin_segment: Vec<MaybeRelocatable> = function_runner
-        .runner
         .vm
         .get_builtin_runners()
         .iter()
@@ -157,41 +155,26 @@ fn run_cairo_1_entrypoint(
         0_i64.into(),
         0_i64.into(),
     ];
-    let builtin_costs_ptr = function_runner.runner.vm.add_memory_segment();
+    let builtin_costs_ptr = function_runner.vm.add_memory_segment();
     function_runner
-        .runner
         .vm
         .load_data(builtin_costs_ptr, &builtin_costs)
         .unwrap();
 
     // Load extra data
-    let core_program_end_ptr = (function_runner.runner.program_base.unwrap()
-        + function_runner
-            .runner
-            .program
-            .shared_program_data
-            .data
-            .len())
+    let core_program_end_ptr = (function_runner.program_base.unwrap()
+        + function_runner.program.shared_program_data.data.len())
     .unwrap();
-    let program_extra_data: Vec<MaybeRelocatable> = vec![
-        BigUint::from_str_radix("208B7FFF7FFF7FFE", 16)
-            .unwrap()
-            .into(),
-        builtin_costs_ptr.into(),
-    ];
+    let program_extra_data: Vec<MaybeRelocatable> =
+        vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     function_runner
-        .runner
         .vm
         .load_data(core_program_end_ptr, &program_extra_data)
         .unwrap();
 
     // Load calldata
-    let calldata_start = function_runner.runner.vm.add_memory_segment();
-    let calldata_end = function_runner
-        .runner
-        .vm
-        .load_data(calldata_start, args)
-        .unwrap();
+    let calldata_start = function_runner.vm.add_memory_segment();
+    let calldata_end = function_runner.vm.load_data(calldata_start, args).unwrap();
 
     // Create entrypoint_args
 
@@ -206,13 +189,8 @@ fn run_cairo_1_entrypoint(
 
     // Run contract entrypoint
 
-    let program_segment_size = function_runner
-        .runner
-        .program
-        .shared_program_data
-        .data
-        .len()
-        + program_extra_data.len();
+    let program_segment_size =
+        function_runner.program.shared_program_data.data.len() + program_extra_data.len();
     function_runner
         .run(
             EntryPoint::Pc(entrypoint_offset),
@@ -224,11 +202,10 @@ fn run_cairo_1_entrypoint(
         .unwrap();
 
     // Check return values
-    let return_values = function_runner.runner.vm.get_return_values(5).unwrap();
+    let return_values = function_runner.vm.get_return_values(5).unwrap();
     let retdata_start = return_values[3].get_relocatable().unwrap();
     let retdata_end = return_values[4].get_relocatable().unwrap();
     let retdata: Vec<Felt252> = function_runner
-        .runner
         .vm
         .get_integer_range(retdata_start, (retdata_end - retdata_start).unwrap())
         .unwrap()
@@ -260,17 +237,15 @@ fn run_cairo_1_entrypoint_with_run_resources(
 
     let program_builtins = get_casm_contract_builtins(&contract_class, entrypoint_offset);
     function_runner
-        .runner
         .initialize_function_runner_cairo_1(&program_builtins)
         .unwrap();
 
     // Implicit Args
-    let syscall_segment = MaybeRelocatable::from(function_runner.runner.vm.add_memory_segment());
+    let syscall_segment = MaybeRelocatable::from(function_runner.vm.add_memory_segment());
 
-    let builtins = function_runner.runner.get_program_builtins();
+    let builtins = function_runner.get_program_builtins();
 
     let builtin_segment: Vec<MaybeRelocatable> = function_runner
-        .runner
         .vm
         .get_builtin_runners()
         .iter()
@@ -294,41 +269,26 @@ fn run_cairo_1_entrypoint_with_run_resources(
         0_i64.into(),
         0_i64.into(),
     ];
-    let builtin_costs_ptr = function_runner.runner.vm.add_memory_segment();
+    let builtin_costs_ptr = function_runner.vm.add_memory_segment();
     function_runner
-        .runner
         .vm
         .load_data(builtin_costs_ptr, &builtin_costs)
         .unwrap();
 
     // Load extra data
-    let core_program_end_ptr = (function_runner.runner.program_base.unwrap()
-        + function_runner
-            .runner
-            .program
-            .shared_program_data
-            .data
-            .len())
+    let core_program_end_ptr = (function_runner.program_base.unwrap()
+        + function_runner.program.shared_program_data.data.len())
     .unwrap();
-    let program_extra_data: Vec<MaybeRelocatable> = vec![
-        BigUint::from_str_radix("208B7FFF7FFF7FFE", 16)
-            .unwrap()
-            .into(),
-        builtin_costs_ptr.into(),
-    ];
+    let program_extra_data: Vec<MaybeRelocatable> =
+        vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     function_runner
-        .runner
         .vm
         .load_data(core_program_end_ptr, &program_extra_data)
         .unwrap();
 
     // Load calldata
-    let calldata_start = function_runner.runner.vm.add_memory_segment();
-    let calldata_end = function_runner
-        .runner
-        .vm
-        .load_data(calldata_start, args)
-        .unwrap();
+    let calldata_start = function_runner.vm.add_memory_segment();
+    let calldata_end = function_runner.vm.load_data(calldata_start, args).unwrap();
 
     // Create entrypoint_args
 
@@ -343,13 +303,8 @@ fn run_cairo_1_entrypoint_with_run_resources(
 
     // Run contract entrypoint
 
-    let program_segment_size = function_runner
-        .runner
-        .program
-        .shared_program_data
-        .data
-        .len()
-        + program_extra_data.len();
+    let program_segment_size =
+        function_runner.program.shared_program_data.data.len() + program_extra_data.len();
     function_runner.run(
         EntryPoint::Pc(entrypoint_offset),
         true,
@@ -359,11 +314,10 @@ fn run_cairo_1_entrypoint_with_run_resources(
     )?;
 
     // Check return values
-    let return_values = function_runner.runner.vm.get_return_values(5).unwrap();
+    let return_values = function_runner.vm.get_return_values(5).unwrap();
     let retdata_start = return_values[3].get_relocatable().unwrap();
     let retdata_end = return_values[4].get_relocatable().unwrap();
     let retdata: Vec<Felt252> = function_runner
-        .runner
         .vm
         .get_integer_range(retdata_start, (retdata_end - retdata_start).unwrap())
         .unwrap()
