@@ -39,6 +39,32 @@ pub struct CairoFunctionRunner {
     pub runner: CairoRunner,
 }
 
+/// Pushes a builtin runner into `runner.vm.builtin_runners` after converting it with `.into()`.
+///
+/// Example expansion:
+/// `push_builtin!(runner, HashBuiltinRunner::new(Some(32), true));`
+/// becomes:
+/// `runner.vm.builtin_runners.push(HashBuiltinRunner::new(Some(32), true).into());`
+macro_rules! push_builtin {
+    ($runner:expr, $builtin:expr) => {
+        $runner.vm.builtin_runners.push($builtin.into());
+    };
+}
+
+impl std::ops::Deref for CairoFunctionRunner {
+    type Target = CairoRunner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runner
+    }
+}
+
+impl std::ops::DerefMut for CairoFunctionRunner {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.runner
+    }
+}
+
 impl CairoFunctionRunner {
     /// Creates a new `CairoFunctionRunner`.
     ///
@@ -96,58 +122,36 @@ impl CairoFunctionRunner {
 
         Ok(Self { runner })
     }
-
     /// Initializes a fixed set of 11 builtins used by this function runner.
     fn initialize_all_builtins(runner: &mut CairoRunner) -> Result<(), RunnerError> {
         runner.vm.builtin_runners.clear();
-        runner
-            .vm
-            .builtin_runners
-            .push(HashBuiltinRunner::new(Some(32), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(RangeCheckBuiltinRunner::<RC_N_PARTS_STANDARD>::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(OutputBuiltinRunner::new(true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(SignatureBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(BitwiseBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(EcOpBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(KeccakBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(PoseidonBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(RangeCheckBuiltinRunner::<RC_N_PARTS_96>::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(ModBuiltinRunner::new_add_mod(&ModInstanceDef::new(Some(1), 1, 96), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(ModBuiltinRunner::new_mul_mod(&ModInstanceDef::new(Some(1), 1, 96), true).into());
+
+        push_builtin!(runner, HashBuiltinRunner::new(Some(32), true));
+        push_builtin!(
+            runner,
+            RangeCheckBuiltinRunner::<RC_N_PARTS_STANDARD>::new(Some(1), true)
+        );
+        push_builtin!(runner, OutputBuiltinRunner::new(true));
+        push_builtin!(runner, SignatureBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, BitwiseBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, EcOpBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, KeccakBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, PoseidonBuiltinRunner::new(Some(1), true));
+        push_builtin!(
+            runner,
+            RangeCheckBuiltinRunner::<RC_N_PARTS_96>::new(Some(1), true)
+        );
+        push_builtin!(
+            runner,
+            ModBuiltinRunner::new_add_mod(&ModInstanceDef::new(Some(1), 1, 96), true)
+        );
+        push_builtin!(
+            runner,
+            ModBuiltinRunner::new_mul_mod(&ModInstanceDef::new(Some(1), 1, 96), true)
+        );
 
         Ok(())
     }
-
     /// Runs a Cairo function from the specified entrypoint.
     ///
     /// # Arguments
@@ -201,23 +205,20 @@ impl CairoFunctionRunner {
     ) -> std::result::Result<(), CairoRunError> {
         let stack = args
             .iter()
-            .map(|arg| self.runner.vm.segments.gen_cairo_arg(arg))
+            .map(|arg| self.vm.segments.gen_cairo_arg(arg))
             .collect::<Result<Vec<MaybeRelocatable>, VirtualMachineError>>()?;
         let return_fp = MaybeRelocatable::from(0_i64);
-        let end = self
-            .runner
-            .initialize_function_entrypoint(entrypoint, stack, return_fp)?;
+        let end = self.initialize_function_entrypoint(entrypoint, stack, return_fp)?;
 
-        self.runner.initialize_vm()?;
+        self.initialize_vm()?;
 
-        self.runner
-            .run_until_pc(end, hint_processor)
-            .map_err(|err| VmException::from_vm_error(&self.runner, err))?;
-        self.runner
-            .end_run(true, false, hint_processor, self.runner.is_proof_mode())?;
+        self.run_until_pc(end, hint_processor)
+            .map_err(|err| VmException::from_vm_error(self, err))?;
+        let is_proof_mode = self.is_proof_mode();
+        self.end_run(true, false, hint_processor, is_proof_mode)?;
 
         if verify_secure {
-            verify_secure_runner(&self.runner, false, program_segment_size)?;
+            verify_secure_runner(self, false, program_segment_size)?;
         }
 
         Ok(())
@@ -247,13 +248,12 @@ impl CairoFunctionRunner {
         &self,
         n_return_values: usize,
     ) -> Result<Vec<MaybeRelocatable>, MemoryError> {
-        self.runner.vm.get_return_values(n_return_values)
+        self.vm.get_return_values(n_return_values)
     }
 
     /// Gets the base pointer for a specific builtin.
     pub fn get_builtin_base(&self, builtin_name: BuiltinName) -> Option<MaybeRelocatable> {
-        self.runner
-            .vm
+        self.vm
             .builtin_runners
             .iter()
             .find(|builtin_runner| builtin_runner.name() == builtin_name)
@@ -265,7 +265,6 @@ impl CairoFunctionRunner {
     fn get_function_pc(&self, entrypoint: &str) -> std::result::Result<usize, CairoRunError> {
         let full_name = format!("__main__.{entrypoint}");
         let identifier = self
-            .runner
             .program
             .get_identifier(&full_name)
             .ok_or_else(|| ProgramError::EntrypointNotFound(entrypoint.to_string()))?;
@@ -356,7 +355,7 @@ mod tests {
             )
             .is_ok());
 
-        assert_eq!(function_runner.runner.get_memory_holes().unwrap(), 0);
+        assert_eq!(function_runner.get_memory_holes().unwrap(), 0);
     }
 
     #[test]
