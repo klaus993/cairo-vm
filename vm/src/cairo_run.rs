@@ -10,7 +10,7 @@ use crate::{
         },
         runners::{
             cairo_pie::CairoPie,
-            cairo_runner::{CairoRunner, RunnerMode},
+            cairo_runner::{CairoRunner, RunnerMode, DEFAULT_MAX_TRACEBACK_ENTRIES},
         },
         security::verify_secure_runner,
         trace::trace_entry::RelocatedTraceEntry,
@@ -49,6 +49,8 @@ pub struct CairoRunConfig<'a> {
     ///   instances of the builtin) compared to their sizes at the end of the execution.
     pub disable_trace_padding: bool,
     pub allow_missing_builtins: Option<bool>,
+    /// The maximum number of traceback entries to store.
+    pub max_traceback_entries: u32,
 }
 
 impl Default for CairoRunConfig<'_> {
@@ -66,6 +68,7 @@ impl Default for CairoRunConfig<'_> {
             disable_trace_padding: false,
             allow_missing_builtins: None,
             dynamic_layout_params: None,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -77,6 +80,8 @@ pub struct StwoCairoRunConfig {
     pub fill_holes: bool,
     pub secure_run: bool,
     pub disable_trace_padding: bool,
+    /// The maximum number of traceback entries to store.
+    pub max_traceback_entries: u32,
 }
 
 impl Default for StwoCairoRunConfig {
@@ -88,6 +93,7 @@ impl Default for StwoCairoRunConfig {
             fill_holes: false,
             secure_run: true,
             disable_trace_padding: true,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -109,6 +115,7 @@ pub fn cairo_run_stwo(
         runner_mode,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
+        cairo_run_config.max_traceback_entries,
     )?;
     cairo_runner.exec_scopes = exec_scopes;
 
@@ -170,6 +177,7 @@ pub fn cairo_run_program_with_initial_scope(
         cairo_run_config.proof_mode,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
+        cairo_run_config.max_traceback_entries,
     )?;
 
     cairo_runner.exec_scopes = exec_scopes;
@@ -277,6 +285,7 @@ pub fn cairo_run_pie(
         false,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
+        cairo_run_config.max_traceback_entries,
     )?;
 
     let end = cairo_runner.initialize(allow_missing_builtins)?;
@@ -357,6 +366,7 @@ pub fn cairo_run_pie_stwo(
         RunnerMode::ExecutionMode,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
+        cairo_run_config.max_traceback_entries,
     )?;
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
@@ -435,6 +445,7 @@ pub fn cairo_run_fuzzed_program(
         cairo_run_config.proof_mode,
         cairo_run_config.trace_enabled,
         cairo_run_config.disable_trace_padding,
+        cairo_run_config.max_traceback_entries,
     )?;
 
     let _end = cairo_runner.initialize(allow_missing_builtins)?;

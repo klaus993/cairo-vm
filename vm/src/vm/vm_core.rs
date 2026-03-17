@@ -2,6 +2,7 @@ use crate::math_utils::signed_felt;
 use crate::types::builtin_name::BuiltinName;
 #[cfg(feature = "extensive_hints")]
 use crate::types::program::HintRange;
+use crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES;
 use crate::vm::vm_memory::memory::MemoryCell;
 use crate::{
     hint_processor::{
@@ -43,8 +44,6 @@ use num_traits::{ToPrimitive, Zero};
 use super::errors::runner_errors::RunnerError;
 use super::runners::builtin_runner::{ModBuiltinRunner, RC_N_PARTS_STANDARD};
 use super::runners::cairo_pie::CairoPie;
-
-const MAX_TRACEBACK_ENTRIES: u32 = 20;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Operands {
@@ -133,10 +132,15 @@ pub struct VirtualMachine {
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
     pub(crate) relocation_table: Option<Vec<usize>>,
+    pub(crate) max_traceback_entries: u32,
 }
 
 impl VirtualMachine {
-    pub fn new(trace_enabled: bool, disable_trace_padding: bool) -> VirtualMachine {
+    pub fn new(
+        trace_enabled: bool,
+        disable_trace_padding: bool,
+        max_traceback_entries: u32,
+    ) -> VirtualMachine {
         let run_context = RunContext {
             pc: Relocatable::from((0, 0)),
             ap: 0,
@@ -165,6 +169,7 @@ impl VirtualMachine {
             #[cfg(feature = "test_utils")]
             hooks: None,
             relocation_table: None,
+            max_traceback_entries,
         }
     }
 
@@ -935,7 +940,7 @@ impl VirtualMachine {
         let mut entries = Vec::<(Relocatable, Relocatable)>::new();
         let mut fp = Relocatable::from((1, self.run_context.fp));
         // Fetch the fp and pc traceback entries
-        for _ in 0..MAX_TRACEBACK_ENTRIES {
+        for _ in 0..self.max_traceback_entries {
             // Get return pc
             let ret_pc = match (fp - 1)
                 .ok()
@@ -1382,6 +1387,7 @@ pub struct VirtualMachineBuilder {
     pub(crate) current_step: usize,
     skip_instruction_execution: bool,
     run_finished: bool,
+    max_traceback_entries: u32,
     #[cfg(feature = "test_utils")]
     pub(crate) hooks: Option<Box<dyn crate::vm::hooks::StepHooks>>,
 }
@@ -1402,6 +1408,7 @@ impl Default for VirtualMachineBuilder {
             skip_instruction_execution: false,
             segments: MemorySegmentManager::new(),
             run_finished: false,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
             #[cfg(feature = "test_utils")]
             hooks: None,
         }
@@ -1470,6 +1477,7 @@ impl VirtualMachineBuilder {
             hooks: self.hooks,
             relocation_table: None,
             disable_trace_padding: false,
+            max_traceback_entries: self.max_traceback_entries,
         }
     }
 }
@@ -1496,6 +1504,7 @@ mod tests {
         vm::{
             errors::memory_errors::MemoryError,
             runners::builtin_runner::{BitwiseBuiltinRunner, EcOpBuiltinRunner, HashBuiltinRunner},
+            runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
         },
     };
     use assert_matches::assert_matches;
@@ -1660,7 +1669,7 @@ mod tests {
             op1: MaybeRelocatable::Int(Felt252::from(10)),
         };
 
-        let mut vm = VirtualMachine::new(false, false);
+        let mut vm = VirtualMachine::new(false, false, DEFAULT_MAX_TRACEBACK_ENTRIES);
         vm.run_context.pc = Relocatable::from((0, 4));
         vm.run_context.ap = 5;
         vm.run_context.fp = 6;

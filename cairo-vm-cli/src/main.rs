@@ -14,7 +14,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 #[cfg(feature = "with_tracer")]
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-use cairo_vm::vm::runners::cairo_runner::RunResources;
+use cairo_vm::vm::runners::cairo_runner::{RunResources, DEFAULT_MAX_TRACEBACK_ENTRIES};
 #[cfg(feature = "with_tracer")]
 use cairo_vm_tracer::error::trace_data_errors::TraceDataError;
 #[cfg(feature = "with_tracer")]
@@ -157,6 +157,7 @@ fn run(args: impl Iterator<Item = String>) -> Result<(), Error> {
         allow_missing_builtins: args.allow_missing_builtins,
         dynamic_layout_params: cairo_layout_params,
         disable_trace_padding: false,
+        max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
     };
 
     let mut cairo_runner = match if args.run_from_cairo_pie {
@@ -269,8 +270,9 @@ mod tests {
     use super::*;
     use assert_matches::assert_matches;
     use cairo_vm::{
-        hint_processor::hint_processor_definition::HintProcessor, types::program::Program,
-        vm::runners::cairo_runner::CairoRunner,
+        hint_processor::hint_processor_definition::HintProcessor,
+        types::program::Program,
+        vm::runners::cairo_runner::{CairoRunner, DEFAULT_MAX_TRACEBACK_ENTRIES},
     };
     use rstest::rstest;
 
@@ -280,8 +282,16 @@ mod tests {
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<CairoRunner, CairoRunError> {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
-        let mut cairo_runner =
-            CairoRunner::new(&program, LayoutName::all_cairo, None, false, true, false).unwrap();
+        let mut cairo_runner = CairoRunner::new(
+            &program,
+            LayoutName::all_cairo,
+            None,
+            false,
+            true,
+            false,
+            DEFAULT_MAX_TRACEBACK_ENTRIES,
+        )
+        .unwrap();
         let end = cairo_runner
             .initialize(false)
             .map_err(CairoRunError::Runner)?;
