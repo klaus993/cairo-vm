@@ -24,7 +24,17 @@ use arbitrary::{self, Arbitrary};
 use core::fmt;
 use tracing::{info, span, Level};
 
+pub trait CommonCairoRunConfig {
+    fn trace_enabled(&self) -> bool;
+    fn relocate_mem(&self) -> bool;
+    fn layout(&self) -> LayoutName;
+    fn dynamic_layout_params(&self) -> Option<CairoLayoutParams>;
+    fn proof_mode(&self) -> bool;
+    fn disable_trace_padding(&self) -> bool;
+}
+
 #[cfg_attr(feature = "test_utils", derive(Arbitrary))]
+#[derive(Clone)]
 pub struct CairoRunConfig<'a> {
     #[cfg_attr(feature = "test_utils", arbitrary(value = "main"))]
     pub entrypoint: &'a str,
@@ -70,6 +80,32 @@ impl Default for CairoRunConfig<'_> {
     }
 }
 
+impl CommonCairoRunConfig for CairoRunConfig<'_> {
+    fn trace_enabled(&self) -> bool {
+        self.trace_enabled
+    }
+
+    fn relocate_mem(&self) -> bool {
+        self.relocate_mem
+    }
+
+    fn layout(&self) -> LayoutName {
+        self.layout
+    }
+
+    fn dynamic_layout_params(&self) -> Option<CairoLayoutParams> {
+        self.dynamic_layout_params.clone()
+    }
+
+    fn proof_mode(&self) -> bool {
+        self.proof_mode
+    }
+
+    fn disable_trace_padding(&self) -> bool {
+        self.disable_trace_padding
+    }
+}
+
 pub struct StwoCairoRunConfig {
     pub trace_enabled: bool,
     pub relocate_mem: bool,
@@ -92,6 +128,33 @@ impl Default for StwoCairoRunConfig {
     }
 }
 
+impl CommonCairoRunConfig for StwoCairoRunConfig {
+    fn trace_enabled(&self) -> bool {
+        self.trace_enabled
+    }
+
+    fn relocate_mem(&self) -> bool {
+        self.relocate_mem
+    }
+
+    fn layout(&self) -> LayoutName {
+        LayoutName::all_cairo_stwo
+    }
+
+    fn dynamic_layout_params(&self) -> Option<CairoLayoutParams> {
+        None
+    }
+
+    fn proof_mode(&self) -> bool {
+        // Unused.
+        true
+    }
+
+    fn disable_trace_padding(&self) -> bool {
+        self.disable_trace_padding
+    }
+}
+
 #[allow(clippy::result_large_err)]
 pub fn cairo_run_stwo(
     program: &Program,
@@ -104,12 +167,7 @@ pub fn cairo_run_stwo(
     let _span = span!(Level::INFO, "cairo run stwo").entered();
 
     let proof_mode = runner_mode != RunnerMode::ExecutionMode;
-    let mut cairo_runner = CairoRunner::new_stwo(
-        program,
-        runner_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner = CairoRunner::new_stwo(program, cairo_run_config, runner_mode)?;
     cairo_runner.exec_scopes = exec_scopes;
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
@@ -163,14 +221,7 @@ pub fn cairo_run_program_with_initial_scope(
         .allow_missing_builtins
         .unwrap_or(cairo_run_config.proof_mode);
 
-    let mut cairo_runner = CairoRunner::new(
-        program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner = CairoRunner::new(program, cairo_run_config)?;
 
     cairo_runner.exec_scopes = exec_scopes;
 
@@ -272,11 +323,10 @@ pub fn cairo_run_pie(
     let program = Program::from_stripped_program(&pie.metadata.program);
     let mut cairo_runner = CairoRunner::new(
         &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        false,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
+        &CairoRunConfig {
+            proof_mode: false,
+            ..cairo_run_config.clone()
+        },
     )?;
 
     let end = cairo_runner.initialize(allow_missing_builtins)?;
@@ -352,12 +402,8 @@ pub fn cairo_run_pie_stwo(
     pie.run_validity_checks()?;
 
     let program = Program::from_stripped_program(&pie.metadata.program);
-    let mut cairo_runner = CairoRunner::new_stwo(
-        &program,
-        RunnerMode::ExecutionMode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner =
+        CairoRunner::new_stwo(&program, cairo_run_config, RunnerMode::ExecutionMode)?;
 
     let end = cairo_runner.initialize_stwo(allowed_builtins)?;
     cairo_runner.vm.finalize_segments_by_cairo_pie(pie);
@@ -428,14 +474,7 @@ pub fn cairo_run_fuzzed_program(
         .allow_missing_builtins
         .unwrap_or(cairo_run_config.proof_mode);
 
-    let mut cairo_runner = CairoRunner::new(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )?;
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config)?;
 
     let _end = cairo_runner.initialize(allow_missing_builtins)?;
 

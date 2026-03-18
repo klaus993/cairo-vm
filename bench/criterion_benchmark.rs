@@ -1,4 +1,5 @@
 use cairo_vm::{
+    cairo_run::CairoRunConfig,
     types::{layout_name::LayoutName, program::Program},
     vm::runners::cairo_runner::CairoRunner,
 };
@@ -29,11 +30,10 @@ fn build_many_runners(c: &mut Criterion) {
             _ = black_box(
                 CairoRunner::new(
                     black_box(&program),
-                    black_box(LayoutName::starknet_with_keccak),
-                    black_box(None),
-                    black_box(false),
-                    black_box(false),
-                    black_box(false),
+                    black_box(&CairoRunConfig {
+                        layout: LayoutName::starknet_with_keccak,
+                        ..Default::default()
+                    }),
                 )
                 .unwrap(),
             );
@@ -50,11 +50,10 @@ fn load_program_data(c: &mut Criterion) {
             || {
                 CairoRunner::new(
                     &program,
-                    LayoutName::starknet_with_keccak,
-                    None,
-                    false,
-                    false,
-                    false,
+                    &CairoRunConfig {
+                        layout: LayoutName::starknet_with_keccak,
+                        ..Default::default()
+                    },
                 )
                 .unwrap()
             },
