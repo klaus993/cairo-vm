@@ -826,8 +826,7 @@ mod tests {
         let proof_mode = true;
         let mut runner = CairoRunner::new(
             &program,
-            LayoutName::all_cairo,
-            None,
+            CairoLayout::new(LayoutName::all_cairo, None).unwrap(),
             proof_mode,
             false,
             false,
