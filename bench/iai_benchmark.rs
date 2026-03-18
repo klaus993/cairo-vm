@@ -36,11 +36,10 @@ fn build_runner() {
     let program = parse_program_helper();
     let runner = CairoRunner::new(
         black_box(&program),
-        LayoutName::starknet_with_keccak,
-        None,
-        false,
-        false,
-        false,
+        &CairoRunConfig {
+            layout: LayoutName::starknet_with_keccak,
+            ..Default::default()
+        },
     )
     .unwrap();
     core::mem::drop(black_box(runner));
@@ -54,11 +53,10 @@ fn build_runner_helper() -> CairoRunner {
     let program = Program::from_bytes(program.as_slice(), Some("main")).unwrap();
     CairoRunner::new(
         &program,
-        LayoutName::starknet_with_keccak,
-        None,
-        false,
-        false,
-        false,
+        &CairoRunConfig {
+            layout: LayoutName::starknet_with_keccak,
+            ..Default::default()
+        },
     )
     .unwrap()
 }

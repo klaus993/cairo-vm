@@ -106,11 +106,10 @@ fn run_cairo_1_entrypoint(
 
     let mut runner = CairoRunner::new(
         &(contract_class.clone().try_into().unwrap()),
-        LayoutName::all_cairo,
-        None,
-        false,
-        false,
-        false,
+        &CairoRunConfig {
+            layout: LayoutName::all_cairo,
+            ..Default::default()
+        },
     )
     .unwrap();
 
@@ -213,11 +212,10 @@ fn run_cairo_1_entrypoint_with_run_resources(
 ) -> Result<Vec<Felt252>, CairoRunError> {
     let mut runner = CairoRunner::new(
         &(contract_class.clone().try_into().unwrap()),
-        LayoutName::all_cairo,
-        None,
-        false,
-        false,
-        false,
+        &CairoRunConfig {
+            layout: LayoutName::all_cairo,
+            ..Default::default()
+        },
     )
     .unwrap();
 

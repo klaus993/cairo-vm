@@ -1,4 +1,4 @@
-use crate::vm::trace::trace_entry::TraceEntry;
+use crate::{cairo_run::CommonCairoRunConfig, vm::trace::trace_entry::TraceEntry};
 
 use std::{
     any::Any,
@@ -10,7 +10,7 @@ use crate::{
     air_private_input::AirPrivateInput,
     air_public_input::{PublicInput, PublicInputError},
     math_utils::safe_div_usize,
-    types::{builtin_name::BuiltinName, layout::CairoLayoutParams, layout_name::LayoutName},
+    types::{builtin_name::BuiltinName, layout_name::LayoutName},
     vm::{
         runners::builtin_runner::SegmentArenaBuiltinRunner,
         trace::trace_entry::{relocate_trace_register, RelocatedTraceEntry},
@@ -188,15 +188,12 @@ pub enum RunnerMode {
 impl CairoRunner {
     /// The `dynamic_layout_params` argument should only be used with dynamic layout.
     /// It is ignored otherwise.
-    pub fn new_v2(
+    pub fn new_v2<'a>(
         program: &Program,
-        layout: LayoutName,
-        dynamic_layout_params: Option<CairoLayoutParams>,
+        config: &impl CommonCairoRunConfig,
         mode: RunnerMode,
-        trace_enabled: bool,
-        disable_trace_padding: bool,
     ) -> Result<CairoRunner, RunnerError> {
-        let cairo_layout = match layout {
+        let cairo_layout = match config.layout() {
             LayoutName::plain => CairoLayout::plain_instance(),
             LayoutName::small => CairoLayout::small_instance(),
             LayoutName::dex => CairoLayout::dex_instance(),
@@ -212,15 +209,16 @@ impl CairoRunner {
             LayoutName::perpetual => CairoLayout::perpetual_instance(),
             LayoutName::dex_with_bitwise => CairoLayout::dex_with_bitwise_instance(),
             LayoutName::dynamic => {
-                let params =
-                    dynamic_layout_params.ok_or(RunnerError::MissingDynamicLayoutParams)?;
+                let params = config
+                    .dynamic_layout_params()
+                    .ok_or(RunnerError::MissingDynamicLayoutParams)?;
 
                 CairoLayout::dynamic_instance(params)?
             }
         };
         Ok(CairoRunner {
             program: program.clone(),
-            vm: VirtualMachine::new(trace_enabled, disable_trace_padding),
+            vm: VirtualMachine::new(config.trace_enabled(), config.disable_trace_padding()),
             layout: cairo_layout,
             final_pc: None,
             program_base: None,
@@ -249,16 +247,15 @@ impl CairoRunner {
     /// Must be paired with `initialize_stwo`. Do not use with `initialize`.
     pub fn new_stwo(
         program: &Program,
+        config: &impl CommonCairoRunConfig,
         mode: RunnerMode,
-        trace_enabled: bool,
-        disable_trace_padding: bool,
     ) -> Result<CairoRunner, RunnerError> {
-        if disable_trace_padding && mode == RunnerMode::ExecutionMode {
+        if config.disable_trace_padding() && mode == RunnerMode::ExecutionMode {
             return Err(RunnerError::DisableTracePaddingWithoutProofMode);
         }
         Ok(CairoRunner {
             program: program.clone(),
-            vm: VirtualMachine::new(trace_enabled, disable_trace_padding),
+            vm: VirtualMachine::new(config.trace_enabled(), config.disable_trace_padding()),
             layout: CairoLayout::all_cairo_stwo_instance(),
             final_pc: None,
             program_base: None,
@@ -299,37 +296,19 @@ impl CairoRunner {
         Ok(end)
     }
 
-    pub fn new(
+    pub fn new<'a>(
         program: &Program,
-        layout: LayoutName,
-        dynamic_layout_params: Option<CairoLayoutParams>,
-        proof_mode: bool,
-        trace_enabled: bool,
-        disable_trace_padding: bool,
+        config: &impl CommonCairoRunConfig,
     ) -> Result<CairoRunner, RunnerError> {
         // `disable_trace_padding` can only be used in `proof_mode`, so we enforce this here to
         // avoid unintended behavior.
-        if disable_trace_padding && !proof_mode {
+        if config.disable_trace_padding() && !config.proof_mode() {
             return Err(RunnerError::DisableTracePaddingWithoutProofMode);
         }
-        if proof_mode {
-            Self::new_v2(
-                program,
-                layout,
-                dynamic_layout_params,
-                RunnerMode::ProofModeCanonical,
-                trace_enabled,
-                disable_trace_padding,
-            )
+        if config.proof_mode() {
+            Self::new_v2(program, config, RunnerMode::ProofModeCanonical)
         } else {
-            Self::new_v2(
-                program,
-                layout,
-                dynamic_layout_params,
-                RunnerMode::ExecutionMode,
-                trace_enabled,
-                disable_trace_padding,
-            )
+            Self::new_v2(program, config, RunnerMode::ExecutionMode)
         }
     }
 
@@ -1794,7 +1773,7 @@ impl MulAssign<usize> for ExecutionResources {
 mod tests {
     use super::*;
     use crate::air_private_input::{PrivateInput, PrivateInputSignature, SignatureInput};
-    use crate::cairo_run::{cairo_run, CairoRunConfig};
+    use crate::cairo_run::{cairo_run, CairoRunConfig, StwoCairoRunConfig};
     use crate::types::instance_definitions::bitwise_instance_def::CELLS_PER_BITWISE;
     use crate::types::instance_definitions::keccak_instance_def::CELLS_PER_KECCAK;
     use crate::vm::vm_memory::memory::MemoryCell;
@@ -5605,7 +5584,12 @@ mod tests {
     fn test_disable_trace_padding_without_proof_mode() {
         let program = program!();
         // Attempt to create a runner in non-proof mode with trace padding disabled.
-        let result = CairoRunner::new(&program, LayoutName::plain, None, false, true, true);
+        let config = CairoRunConfig {
+            trace_enabled: true,
+            disable_trace_padding: true,
+            ..Default::default()
+        };
+        let result = CairoRunner::new(&program, &config);
         match result {
             Err(RunnerError::DisableTracePaddingWithoutProofMode) => { /* test passed */ }
             _ => panic!("Expected DisableTracePaddingWithoutProofMode error"),
@@ -5807,8 +5791,7 @@ mod tests {
 
         let program: &Program = &program;
         let mut cairo_runner =
-            CairoRunner::new(program, LayoutName::plain, None, false, false, false)
-                .expect("failed to create runner");
+            CairoRunner::new(program, &CairoRunConfig::default()).expect("failed to create runner");
 
         // We allow missing builtins, as we will simulate them later.
         let end = cairo_runner
@@ -5836,8 +5819,12 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let runner =
-            CairoRunner::new_stwo(&program, RunnerMode::ProofModeCanonical, true, true).unwrap();
+        let runner = CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig::default(),
+            RunnerMode::ProofModeCanonical,
+        )
+        .unwrap();
         assert_eq!(runner.runner_mode, RunnerMode::ProofModeCanonical);
         assert!(runner.execution_public_memory.is_some());
     }
@@ -5849,8 +5836,15 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let runner =
-            CairoRunner::new_stwo(&program, RunnerMode::ExecutionMode, true, false).unwrap();
+        let runner = CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig {
+                disable_trace_padding: false,
+                ..Default::default()
+            },
+            RunnerMode::ExecutionMode,
+        )
+        .unwrap();
         assert_eq!(runner.runner_mode, RunnerMode::ExecutionMode);
         assert!(runner.execution_public_memory.is_none());
     }
@@ -5858,7 +5852,11 @@ mod tests {
     #[test]
     fn new_stwo_disable_trace_padding_without_proof_mode() {
         let program = Program::default();
-        match CairoRunner::new_stwo(&program, RunnerMode::ExecutionMode, true, true) {
+        match CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig::default(),
+            RunnerMode::ExecutionMode,
+        ) {
             Err(RunnerError::DisableTracePaddingWithoutProofMode) => {}
             _ => panic!("Expected DisableTracePaddingWithoutProofMode error"),
         }
@@ -5871,8 +5869,12 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let mut runner =
-            CairoRunner::new_stwo(&program, RunnerMode::ProofModeCanonical, true, true).unwrap();
+        let mut runner = CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig::default(),
+            RunnerMode::ProofModeCanonical,
+        )
+        .unwrap();
         let allowed = vec![
             BuiltinName::output,
             BuiltinName::pedersen,
@@ -5895,8 +5897,12 @@ mod tests {
     #[test]
     fn initialize_builtins_stwo_rejects_ecdsa() {
         let program = Program::default();
-        let mut runner =
-            CairoRunner::new_stwo(&program, RunnerMode::ProofModeCanonical, true, true).unwrap();
+        let mut runner = CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig::default(),
+            RunnerMode::ProofModeCanonical,
+        )
+        .unwrap();
         match runner.initialize_builtins_stwo(&[BuiltinName::ecdsa]) {
             Err(RunnerError::UnsupportedStwoBuiltin(BuiltinName::ecdsa)) => {}
             _ => panic!("Expected UnsupportedStwoBuiltin(ecdsa) error"),
@@ -5906,8 +5912,12 @@ mod tests {
     #[test]
     fn initialize_builtins_stwo_rejects_keccak() {
         let program = Program::default();
-        let mut runner =
-            CairoRunner::new_stwo(&program, RunnerMode::ProofModeCanonical, true, true).unwrap();
+        let mut runner = CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig::default(),
+            RunnerMode::ProofModeCanonical,
+        )
+        .unwrap();
         match runner.initialize_builtins_stwo(&[BuiltinName::keccak]) {
             Err(RunnerError::UnsupportedStwoBuiltin(BuiltinName::keccak)) => {}
             _ => panic!("Expected UnsupportedStwoBuiltin(keccak) error"),
@@ -5921,8 +5931,12 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let mut runner =
-            CairoRunner::new_stwo(&program, RunnerMode::ProofModeCanonical, true, true).unwrap();
+        let mut runner = CairoRunner::new_stwo(
+            &program,
+            &StwoCairoRunConfig::default(),
+            RunnerMode::ProofModeCanonical,
+        )
+        .unwrap();
         // bitwise_builtin_test requires bitwise, but we only allow output
         match runner.initialize_builtins_stwo(&[BuiltinName::output]) {
             Err(RunnerError::UnsupportedStwoBuiltin(BuiltinName::bitwise)) => {}

@@ -250,39 +250,40 @@ pub mod test_utils {
         ($program:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                crate::types::layout_name::LayoutName::all_cairo,
-                None,
-                false,
-                false,
-                false,
+                &crate::cairo_run::CairoRunConfig::default(),
             )
             .unwrap()
         };
         ($program:expr, $layout:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
-                &$program, $layout, None, false, false, false,
+                &$program,
+                &crate::cairo_run::CairoRunConfig {
+                    layout: $layout,
+                    ..Default::default()
+                },
             )
             .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                $layout,
-                None,
-                $proof_mode,
-                false,
-                false,
+                &crate::cairo_run::CairoRunConfig {
+                    layout: $layout,
+                    proof_mode: $proof_mode,
+                    ..Default::default()
+                },
             )
             .unwrap()
         };
         ($program:expr, $layout:expr, $proof_mode:expr, $trace_enabled:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
                 &$program,
-                $layout,
-                None,
-                $proof_mode,
-                $trace_enabled,
-                false,
+                &crate::cairo_run::CairoRunConfig {
+                    layout: $layout,
+                    proof_mode: $proof_mode,
+                    trace_enabled: $trace_enabled,
+                    ..Default::default()
+                },
             )
             .unwrap()
         };

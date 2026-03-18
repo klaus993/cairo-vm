@@ -1069,15 +1069,7 @@ fn run_program_with_custom_mod_builtin_params(
     };
     let mut hint_processor = BuiltinHintProcessor::new_empty();
     let program = Program::from_bytes(data, Some(cairo_run_config.entrypoint)).unwrap();
-    let mut cairo_runner = CairoRunner::new(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params,
-        cairo_run_config.proof_mode,
-        cairo_run_config.trace_enabled,
-        cairo_run_config.disable_trace_padding,
-    )
-    .unwrap();
+    let mut cairo_runner = CairoRunner::new(&program, &cairo_run_config).unwrap();
 
     let end = cairo_runner.initialize(false).unwrap();
     // Modify add_mod & mul_mod params
