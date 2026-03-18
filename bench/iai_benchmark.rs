@@ -1,3 +1,4 @@
+use cairo_vm::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES;
 use core::hint::black_box;
 use iai_callgrind::library_benchmark;
 use iai_callgrind::library_benchmark_group;
@@ -41,6 +42,7 @@ fn build_runner() {
         false,
         false,
         false,
+        DEFAULT_MAX_TRACEBACK_ENTRIES,
     )
     .unwrap();
     core::mem::drop(black_box(runner));
@@ -59,6 +61,7 @@ fn build_runner_helper() -> CairoRunner {
         false,
         false,
         false,
+        DEFAULT_MAX_TRACEBACK_ENTRIES,
     )
     .unwrap()
 }

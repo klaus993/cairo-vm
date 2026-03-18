@@ -2,7 +2,7 @@ use crate::types::layout_name::LayoutName;
 #[cfg(feature = "cairo-1-hints")]
 use crate::vm::errors::cairo_run_errors::CairoRunError;
 #[cfg(feature = "cairo-1-hints")]
-use crate::vm::runners::cairo_runner::RunResources;
+use crate::vm::runners::cairo_runner::{RunResources, DEFAULT_MAX_TRACEBACK_ENTRIES};
 use crate::vm::trace::trace_entry::RelocatedTraceEntry;
 #[cfg(feature = "cairo-1-hints")]
 use crate::Felt252;
@@ -111,6 +111,7 @@ fn run_cairo_1_entrypoint(
         false,
         false,
         false,
+        DEFAULT_MAX_TRACEBACK_ENTRIES,
     )
     .unwrap();
 
@@ -218,6 +219,7 @@ fn run_cairo_1_entrypoint_with_run_resources(
         false,
         false,
         false,
+        DEFAULT_MAX_TRACEBACK_ENTRIES,
     )
     .unwrap();
 

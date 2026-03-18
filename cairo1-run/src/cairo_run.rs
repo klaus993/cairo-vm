@@ -46,7 +46,9 @@ use cairo_vm::{
     },
     vm::{
         errors::{runner_errors::RunnerError, vm_errors::VirtualMachineError},
-        runners::cairo_runner::{CairoRunner, RunResources, RunnerMode},
+        runners::cairo_runner::{
+            CairoRunner, RunResources, RunnerMode, DEFAULT_MAX_TRACEBACK_ENTRIES,
+        },
         vm_core::VirtualMachine,
     },
     Felt252,
@@ -101,6 +103,8 @@ pub struct Cairo1RunConfig<'a> {
     pub finalize_builtins: bool,
     /// Appends the return and input values to the output segment. This is performed by default when running in proof_mode
     pub append_return_values: bool,
+    /// The maximum number of traceback entries to store.
+    pub max_traceback_entries: u32,
 }
 
 impl Default for Cairo1RunConfig<'_> {
@@ -115,6 +119,7 @@ impl Default for Cairo1RunConfig<'_> {
             finalize_builtins: false,
             append_return_values: false,
             dynamic_layout_params: None,
+            max_traceback_entries: DEFAULT_MAX_TRACEBACK_ENTRIES,
         }
     }
 }
@@ -263,6 +268,7 @@ pub fn cairo_run_program(
         runner_mode,
         cairo_run_config.trace_enabled,
         false,
+        cairo_run_config.max_traceback_entries,
     )?;
     let end = runner.initialize(cairo_run_config.proof_mode)?;
     load_arguments(&mut runner, &cairo_run_config, main_func)?;

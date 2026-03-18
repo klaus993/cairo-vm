@@ -3,6 +3,7 @@
 use std::fs::{self, File};
 use std::io::BufReader;
 
+use cairo_vm::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES;
 use cairo_vm::{
     hint_processor::{
         builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
@@ -49,7 +50,7 @@ fn run() {
             whitelists.push(whitelist_file.allowed_hint_expressions);
         }
     }
-    let mut vm = VirtualMachine::new(false, false);
+    let mut vm = VirtualMachine::new(false, false, DEFAULT_MAX_TRACEBACK_ENTRIES);
     let mut hint_executor = BuiltinHintProcessor::new_empty();
     let (ap_tracking_data, reference_ids, references, mut exec_scopes, accessible_scopes) = (
         ApTracking::default(),

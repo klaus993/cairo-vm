@@ -1,6 +1,6 @@
 use cairo_vm::{
     types::{layout_name::LayoutName, program::Program},
-    vm::runners::cairo_runner::CairoRunner,
+    vm::runners::cairo_runner::{CairoRunner, DEFAULT_MAX_TRACEBACK_ENTRIES},
 };
 use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 
@@ -34,6 +34,7 @@ fn build_many_runners(c: &mut Criterion) {
                     black_box(false),
                     black_box(false),
                     black_box(false),
+                    black_box(DEFAULT_MAX_TRACEBACK_ENTRIES),
                 )
                 .unwrap(),
             );
@@ -55,6 +56,7 @@ fn load_program_data(c: &mut Criterion) {
                     false,
                     false,
                     false,
+                    DEFAULT_MAX_TRACEBACK_ENTRIES,
                 )
                 .unwrap()
             },
