@@ -6,6 +6,7 @@
 
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::hint_processor_definition::HintProcessor;
+use crate::serde::deserialize_program::Identifier;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::errors::program_errors::ProgramError;
 use crate::types::instance_definitions::mod_instance_def::ModInstanceDef;
@@ -260,17 +261,73 @@ impl CairoFunctionRunner {
             .map(|builtin_runner| MaybeRelocatable::from((builtin_runner.base() as isize, 0)))
     }
 
-    /// Gets the program counter (PC) for a function entrypoint.
+    /// Returns the program counter (PC) for a function entrypoint by name.
+    ///
+    /// Looks up the identifier `__main__.{entrypoint}` in the program, then resolves it to a PC
+    /// (following alias chains if needed) via [`get_pc_from_identifier`](Self::get_pc_from_identifier).
+    ///
+    /// # Errors
+    /// - [`ProgramError::EntrypointNotFound`] if no identifier exists for the given name.
+    /// - [`RunnerError::NoPC`] if the resolved identifier has no PC (e.g. corrupt alias).
+    /// - [`ProgramError::AliasMissingDestination`] if an alias has no `destination`.
+    /// - [`ProgramError::InvalidIdentifierTypeForPc`] if the identifier type is not `"function"` or `"alias"`.
     #[allow(clippy::result_large_err)]
-    fn get_function_pc(&self, entrypoint: &str) -> std::result::Result<usize, CairoRunError> {
+    pub(crate) fn get_function_pc(
+        &self,
+        entrypoint: &str,
+    ) -> std::result::Result<usize, CairoRunError> {
         let full_name = format!("__main__.{entrypoint}");
         let identifier = self
             .program
             .get_identifier(&full_name)
             .ok_or_else(|| ProgramError::EntrypointNotFound(entrypoint.to_string()))?;
 
-        let pc = identifier.pc.ok_or(RunnerError::NoPC)?;
+        self.get_pc_from_identifier(identifier)
+    }
 
-        Ok(pc)
+    /// Resolves an identifier to its program counter (PC), following alias chains.
+    ///
+    /// - **`function`**: returns the identifier's `pc` if present.
+    /// - **`alias`**: resolves `destination` to another identifier and recurses until a function is found.
+    /// - **Other types** (e.g. `struct`, `const`): returns [`ProgramError::InvalidIdentifierTypeForPc`].
+    ///
+    /// # Errors
+    /// - [`RunnerError::NoPC`] when the identifier is a function but has no `pc`.
+    /// - [`ProgramError::AliasMissingDestination`] when the identifier is an alias but has no `destination`.
+    /// - [`ProgramError::EntrypointNotFound`] when the alias destination is not in the program.
+    /// - [`ProgramError::InvalidIdentifierTypeForPc`] when the identifier type is not `"function"` or `"alias"`.
+    #[allow(clippy::result_large_err)]
+    fn get_pc_from_identifier(
+        &self,
+        idetifier: &Identifier,
+    ) -> std::result::Result<usize, CairoRunError> {
+        match idetifier.type_.as_deref() {
+            Some("function") => {
+                let pc = idetifier.pc.ok_or(RunnerError::NoPC)?;
+                Ok(pc)
+            }
+            Some("alias") => {
+                let destination = idetifier.destination.as_deref().ok_or(
+                    ProgramError::AliasMissingDestination(
+                        idetifier.full_name.as_deref().unwrap_or("").to_string(),
+                    ),
+                )?;
+
+                let destination_identifier = self
+                    .runner
+                    .program
+                    .get_identifier(destination)
+                    .ok_or_else(|| ProgramError::EntrypointNotFound(destination.to_string()))?;
+                self.get_pc_from_identifier(destination_identifier)
+            }
+            v => {
+                let name = idetifier
+                    .full_name
+                    .clone()
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                let type_str = v.unwrap_or("<unknown>").to_string();
+                Err(ProgramError::InvalidIdentifierTypeForPc(name, type_str).into())
+            }
+        }
     }
 }
