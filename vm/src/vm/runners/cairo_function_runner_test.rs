@@ -166,6 +166,38 @@ fn run_default_cairo0_happy_path() {
 }
 
 #[test]
+// Test that get_function_pc resolves "__main__.assert_nn" (alias) to the PC of starkware.cairo.common.math.assert_nn (0).
+fn get_function_pc_assert_nn_resolves_alias_to_pc_0() {
+    let program = load_program(include_bytes!(
+        "../../../../cairo_programs/example_program.json"
+    ));
+    let function_runner = CairoFunctionRunner::new(&program).unwrap();
+
+    let pc = function_runner.get_function_pc("assert_nn").unwrap();
+    assert_eq!(
+        pc, 0,
+        "assert_nn is an alias to starkware.cairo.common.math.assert_nn which has pc 0"
+    );
+}
+
+#[test]
+// Test that get_function_pc returns the direct PC for "__main__.assert_nn_manual_implementation" (function with pc 4).
+fn get_function_pc_assert_nn_manual_implementation_returns_pc_4() {
+    let program = load_program(include_bytes!(
+        "../../../../cairo_programs/example_program.json"
+    ));
+    let function_runner = CairoFunctionRunner::new(&program).unwrap();
+
+    let pc = function_runner
+        .get_function_pc("assert_nn_manual_implementation")
+        .unwrap();
+    assert_eq!(
+        pc, 4,
+        "assert_nn_manual_implementation is a function with pc 4"
+    );
+}
+
+#[test]
 // Test that running a missing function name returns `EntrypointNotFound`.
 fn run_missing_entrypoint_returns_entrypoint_not_found() {
     let program = load_program(include_bytes!(
