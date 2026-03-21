@@ -3,12 +3,12 @@
 //! Provides a simplified API for executing individual Cairo 0 functions by name or PC.
 //! This entire module is compiled only when the `test_utils` feature is enabled.
 
+use crate::cairo_run::Cairo0RunConfig;
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::hint_processor_definition::HintProcessor;
 use crate::serde::deserialize_program::Identifier;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::errors::program_errors::ProgramError;
-use crate::types::layout::CairoLayout;
 use crate::types::layout_name::LayoutName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
@@ -33,10 +33,11 @@ impl CairoRunner {
     pub fn new_for_testing(program: &Program) -> Result<Self, CairoRunError> {
         let mut runner = CairoRunner::new(
             program,
-            CairoLayout::new(LayoutName::plain, None).unwrap(),
-            false,
-            false,
-            false,
+            &Cairo0RunConfig {
+                layout: LayoutName::plain,
+                ..Default::default()
+            }
+            .run_config()?,
         )?;
         runner.initialize_all_builtins()?;
         runner.initialize_segments(None);
@@ -208,10 +209,12 @@ mod tests {
         ));
         let runner = CairoRunner::new(
             &program,
-            CairoLayout::new(LayoutName::plain, None).unwrap(),
-            false,
-            false,
-            false,
+            &Cairo0RunConfig {
+                layout: LayoutName::plain,
+                ..Default::default()
+            }
+            .run_config()
+            .unwrap(),
         )
         .unwrap();
 
