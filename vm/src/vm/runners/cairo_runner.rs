@@ -5917,7 +5917,6 @@ mod tests {
         ];
         let runner = crate::cairo_run::cairo_run_stwo(
             &program,
-            RunnerMode::ProofModeCanonical,
             &allowed,
             &mut hint_processor,
             ExecutionScopes::new(),
@@ -5945,7 +5944,6 @@ mod tests {
         ];
         let runner = crate::cairo_run::cairo_run_stwo(
             &program,
-            RunnerMode::ProofModeCanonical,
             &allowed,
             &mut hint_processor,
             ExecutionScopes::new(),
@@ -5998,7 +5996,6 @@ mod tests {
             // Stwo run
             let stwo_runner = crate::cairo_run::cairo_run_stwo(
                 &program,
-                RunnerMode::ProofModeCanonical,
                 &allowed,
                 &mut BuiltinHintProcessor::new_empty(),
                 ExecutionScopes::new(),
@@ -6009,6 +6006,7 @@ mod tests {
                     fill_holes: false,
                     secure_run: true,
                     disable_trace_padding: true,
+                    runner_mode: RunnerMode::ProofModeCanonical,
                 },
             )
             .unwrap();
