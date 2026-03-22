@@ -12,13 +12,20 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 
+* Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
+
+* Add union merge strategy for CHANGELOG.md [#2345](https://github.com/lambdaclass/cairo-vm/pull/2345)
+
 * fix: Fix off-by-one comparisons in `split_int`, `assert_250_bit`, and `sqrt` hints [#2348](https://github.com/lambdaclass/cairo-vm/pull/2348)
 
-* feat: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
+* chore: Add `CairoFunctionRunner` for running Cairo entrypoints by name or PC, and broaden `CairoArg`/`MaybeRelocatable` conversions to support primitive signed/unsigned integers and big integers [#2352](https://github.com/lambdaclass/cairo-vm/pull/2352)
+
+* chore: Add unit tests for `CairoFunctionRunner`, `CairoArg` conversions/macros, and `MaybeRelocatable` conversion macro coverage [#2354](https://github.com/lambdaclass/cairo-vm/pull/2354)
 
 * test: Add `tests_cairo` utilities and a math Cairo test suite, including `assert_mr_eq!` and structured error helpers [#2353](https://github.com/lambdaclass/cairo-vm/pull/2353)
 
 * chore: Add `math_cmp_test` for Cairo file `math_cmp` and add `sub_mod_prime` function to `math_test_utils` [#2355](https://github.com/lambdaclass/cairo-vm/pull/2355)
+
 
 #### [3.2.0] - 2026-3-3
 

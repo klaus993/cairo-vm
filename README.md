@@ -246,18 +246,6 @@ When running a Cairo program directly using the Cairo-vm repository you would fi
   cairo_runner.initialize_segments(None);
   ```
 
-When using cairo-vm with the Starknet devnet there are additional parameters that are part of the OS context passed to the execution routine that we do not have here when using it directly. These parameters are, for example, initial stacks of the builtins, which are the base of each of them and are needed as they are the implicit arguments of the function.
-
-```rust
-let mut function_runner = CairoFunctionRunner::new(&program)?;
-let _var = function_runner.run_default_builtin_hint_processor(
-    "main",
-    &[
-        MaybeRelocatable::from(2).into(),      // entrypoint selector
-        MaybeRelocatable::from((2, 0)).into(), // output_ptr for example
-    ],
-);
-```
 ### Running cairo 1 programs
 
 To run a cairo 1 program enter in the folder `cd cairo1-run` and follow the [`cairo1-run documentation`](cairo1-run/README.md)

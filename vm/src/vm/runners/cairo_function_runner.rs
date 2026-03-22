@@ -6,6 +6,7 @@
 
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::hint_processor_definition::HintProcessor;
+use crate::serde::deserialize_program::Identifier;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::errors::program_errors::ProgramError;
 use crate::types::instance_definitions::mod_instance_def::ModInstanceDef;
@@ -37,6 +38,32 @@ pub enum EntryPoint<'a> {
 pub struct CairoFunctionRunner {
     /// The Cairo runner instance that manages VM execution.
     pub runner: CairoRunner,
+}
+
+/// Pushes a builtin runner into `runner.vm.builtin_runners` after converting it with `.into()`.
+///
+/// Example expansion:
+/// `push_builtin!(runner, HashBuiltinRunner::new(Some(32), true));`
+/// becomes:
+/// `runner.vm.builtin_runners.push(HashBuiltinRunner::new(Some(32), true).into());`
+macro_rules! push_builtin {
+    ($runner:expr, $builtin:expr) => {
+        $runner.vm.builtin_runners.push($builtin.into());
+    };
+}
+
+impl std::ops::Deref for CairoFunctionRunner {
+    type Target = CairoRunner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runner
+    }
+}
+
+impl std::ops::DerefMut for CairoFunctionRunner {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.runner
+    }
 }
 
 impl CairoFunctionRunner {
@@ -96,58 +123,36 @@ impl CairoFunctionRunner {
 
         Ok(Self { runner })
     }
-
     /// Initializes a fixed set of 11 builtins used by this function runner.
     fn initialize_all_builtins(runner: &mut CairoRunner) -> Result<(), RunnerError> {
         runner.vm.builtin_runners.clear();
-        runner
-            .vm
-            .builtin_runners
-            .push(HashBuiltinRunner::new(Some(32), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(RangeCheckBuiltinRunner::<RC_N_PARTS_STANDARD>::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(OutputBuiltinRunner::new(true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(SignatureBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(BitwiseBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(EcOpBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(KeccakBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(PoseidonBuiltinRunner::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(RangeCheckBuiltinRunner::<RC_N_PARTS_96>::new(Some(1), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(ModBuiltinRunner::new_add_mod(&ModInstanceDef::new(Some(1), 1, 96), true).into());
-        runner
-            .vm
-            .builtin_runners
-            .push(ModBuiltinRunner::new_mul_mod(&ModInstanceDef::new(Some(1), 1, 96), true).into());
+
+        push_builtin!(runner, HashBuiltinRunner::new(Some(32), true));
+        push_builtin!(
+            runner,
+            RangeCheckBuiltinRunner::<RC_N_PARTS_STANDARD>::new(Some(1), true)
+        );
+        push_builtin!(runner, OutputBuiltinRunner::new(true));
+        push_builtin!(runner, SignatureBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, BitwiseBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, EcOpBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, KeccakBuiltinRunner::new(Some(1), true));
+        push_builtin!(runner, PoseidonBuiltinRunner::new(Some(1), true));
+        push_builtin!(
+            runner,
+            RangeCheckBuiltinRunner::<RC_N_PARTS_96>::new(Some(1), true)
+        );
+        push_builtin!(
+            runner,
+            ModBuiltinRunner::new_add_mod(&ModInstanceDef::new(Some(1), 1, 96), true)
+        );
+        push_builtin!(
+            runner,
+            ModBuiltinRunner::new_mul_mod(&ModInstanceDef::new(Some(1), 1, 96), true)
+        );
 
         Ok(())
     }
-
     /// Runs a Cairo function from the specified entrypoint.
     ///
     /// # Arguments
@@ -201,23 +206,20 @@ impl CairoFunctionRunner {
     ) -> std::result::Result<(), CairoRunError> {
         let stack = args
             .iter()
-            .map(|arg| self.runner.vm.segments.gen_cairo_arg(arg))
+            .map(|arg| self.vm.segments.gen_cairo_arg(arg))
             .collect::<Result<Vec<MaybeRelocatable>, VirtualMachineError>>()?;
         let return_fp = MaybeRelocatable::from(0_i64);
-        let end = self
-            .runner
-            .initialize_function_entrypoint(entrypoint, stack, return_fp)?;
+        let end = self.initialize_function_entrypoint(entrypoint, stack, return_fp)?;
 
-        self.runner.initialize_vm()?;
+        self.initialize_vm()?;
 
-        self.runner
-            .run_until_pc(end, hint_processor)
-            .map_err(|err| VmException::from_vm_error(&self.runner, err))?;
-        self.runner
-            .end_run(true, false, hint_processor, self.runner.is_proof_mode())?;
+        self.run_until_pc(end, hint_processor)
+            .map_err(|err| VmException::from_vm_error(self, err))?;
+        let is_proof_mode = self.is_proof_mode();
+        self.end_run(true, false, hint_processor, is_proof_mode)?;
 
         if verify_secure {
-            verify_secure_runner(&self.runner, false, program_segment_size)?;
+            verify_secure_runner(self, false, program_segment_size)?;
         }
 
         Ok(())
@@ -247,144 +249,85 @@ impl CairoFunctionRunner {
         &self,
         n_return_values: usize,
     ) -> Result<Vec<MaybeRelocatable>, MemoryError> {
-        self.runner.vm.get_return_values(n_return_values)
+        self.vm.get_return_values(n_return_values)
     }
 
     /// Gets the base pointer for a specific builtin.
     pub fn get_builtin_base(&self, builtin_name: BuiltinName) -> Option<MaybeRelocatable> {
-        self.runner
-            .vm
+        self.vm
             .builtin_runners
             .iter()
             .find(|builtin_runner| builtin_runner.name() == builtin_name)
             .map(|builtin_runner| MaybeRelocatable::from((builtin_runner.base() as isize, 0)))
     }
 
-    /// Gets the program counter (PC) for a function entrypoint.
+    /// Returns the program counter (PC) for a function entrypoint by name.
+    ///
+    /// Looks up the identifier `__main__.{entrypoint}` in the program, then resolves it to a PC
+    /// (following alias chains if needed) via [`get_pc_from_identifier`](Self::get_pc_from_identifier).
+    ///
+    /// # Errors
+    /// - [`ProgramError::EntrypointNotFound`] if no identifier exists for the given name.
+    /// - [`RunnerError::NoPC`] if the resolved identifier has no PC (e.g. corrupt alias).
+    /// - [`ProgramError::AliasMissingDestination`] if an alias has no `destination`.
+    /// - [`ProgramError::InvalidIdentifierTypeForPc`] if the identifier type is not `"function"` or `"alias"`.
     #[allow(clippy::result_large_err)]
-    fn get_function_pc(&self, entrypoint: &str) -> std::result::Result<usize, CairoRunError> {
+    pub(crate) fn get_function_pc(
+        &self,
+        entrypoint: &str,
+    ) -> std::result::Result<usize, CairoRunError> {
         let full_name = format!("__main__.{entrypoint}");
         let identifier = self
-            .runner
             .program
             .get_identifier(&full_name)
             .ok_or_else(|| ProgramError::EntrypointNotFound(entrypoint.to_string()))?;
 
-        let pc = identifier.pc.ok_or(RunnerError::NoPC)?;
-
-        Ok(pc)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
-    use crate::vm::errors::cairo_run_errors::CairoRunError;
-    use assert_matches::assert_matches;
-
-    #[test]
-    fn run_from_entrypoint_custom_program_test() {
-        let program = Program::from_bytes(
-            include_bytes!("../../../../cairo_programs/example_program.json"),
-            None,
-        )
-        .unwrap();
-
-        let mut function_runner = CairoFunctionRunner::new(&program).unwrap();
-        let mut hint_processor = BuiltinHintProcessor::new_empty();
-        let range_check_ptr = function_runner
-            .get_builtin_base(BuiltinName::range_check)
-            .unwrap();
-        let main_args = vec![
-            CairoArg::from(MaybeRelocatable::from(2_i64)),
-            CairoArg::from(range_check_ptr.clone()),
-        ];
-        assert_matches!(
-            function_runner.run(
-                EntryPoint::Name("main"),
-                true,
-                None,
-                &mut hint_processor,
-                &main_args,
-            ),
-            Ok(())
-        );
-
-        let mut second_function_runner = CairoFunctionRunner::new(&program).unwrap();
-        let mut second_hint_processor = BuiltinHintProcessor::new_empty();
-        let second_range_check_ptr = second_function_runner
-            .get_builtin_base(BuiltinName::range_check)
-            .unwrap();
-        let fib_args = vec![
-            CairoArg::from(MaybeRelocatable::from(2_i64)),
-            CairoArg::from(second_range_check_ptr),
-        ];
-        assert_matches!(
-            second_function_runner.run(
-                EntryPoint::Name("evaluate_fib"),
-                true,
-                None,
-                &mut second_hint_processor,
-                &fib_args,
-            ),
-            Ok(())
-        );
+        self.get_pc_from_identifier(identifier)
     }
 
-    #[test]
-    fn run_from_entrypoint_bitwise_test_check_memory_holes() {
-        let program = Program::from_bytes(
-            include_bytes!("../../../../cairo_programs/bitwise_builtin_test.json"),
-            None,
-        )
-        .unwrap();
-        let mut function_runner = CairoFunctionRunner::new(&program).unwrap();
-        let mut hint_processor = BuiltinHintProcessor::new_empty();
-        let bitwise_ptr = function_runner
-            .get_builtin_base(BuiltinName::bitwise)
-            .unwrap();
-        let args = vec![CairoArg::from(bitwise_ptr)];
-
-        assert!(function_runner
-            .run(
-                EntryPoint::Name("main"),
-                true,
-                None,
-                &mut hint_processor,
-                &args,
-            )
-            .is_ok());
-
-        assert_eq!(function_runner.runner.get_memory_holes().unwrap(), 0);
-    }
-
-    #[test]
-    fn run_from_entrypoint_substitute_error_message_test() {
-        let program = Program::from_bytes(
-            include_bytes!("../../../../cairo_programs/bad_programs/error_msg_function.json"),
-            None,
-        )
-        .unwrap();
-        let mut function_runner = CairoFunctionRunner::new(&program).unwrap();
-        let mut hint_processor = BuiltinHintProcessor::new_empty();
-        let result = function_runner.run(
-            EntryPoint::Name("main"),
-            true,
-            None,
-            &mut hint_processor,
-            &[],
-        );
-
-        match result {
-            Err(CairoRunError::VmException(exception)) => {
-                assert_eq!(
-                    exception.error_attr_value,
-                    Some(String::from("Error message: Test error\n"))
-                )
+    /// Resolves an identifier to its program counter (PC), following alias chains.
+    ///
+    /// - **`function`**: returns the identifier's `pc` if present.
+    /// - **`alias`**: resolves `destination` to another identifier and recurses until a function is found.
+    /// - **Other types** (e.g. `struct`, `const`): returns [`ProgramError::InvalidIdentifierTypeForPc`].
+    ///
+    /// # Errors
+    /// - [`RunnerError::NoPC`] when the identifier is a function but has no `pc`.
+    /// - [`ProgramError::AliasMissingDestination`] when the identifier is an alias but has no `destination`.
+    /// - [`ProgramError::EntrypointNotFound`] when the alias destination is not in the program.
+    /// - [`ProgramError::InvalidIdentifierTypeForPc`] when the identifier type is not `"function"` or `"alias"`.
+    #[allow(clippy::result_large_err)]
+    fn get_pc_from_identifier(
+        &self,
+        idetifier: &Identifier,
+    ) -> std::result::Result<usize, CairoRunError> {
+        match idetifier.type_.as_deref() {
+            Some("function") => {
+                let pc = idetifier.pc.ok_or(RunnerError::NoPC)?;
+                Ok(pc)
             }
-            Err(_) => panic!("Wrong error returned, expected VmException"),
-            Ok(_) => panic!("Expected run to fail"),
+            Some("alias") => {
+                let destination = idetifier.destination.as_deref().ok_or(
+                    ProgramError::AliasMissingDestination(
+                        idetifier.full_name.as_deref().unwrap_or("").to_string(),
+                    ),
+                )?;
+
+                let destination_identifier = self
+                    .runner
+                    .program
+                    .get_identifier(destination)
+                    .ok_or_else(|| ProgramError::EntrypointNotFound(destination.to_string()))?;
+                self.get_pc_from_identifier(destination_identifier)
+            }
+            v => {
+                let name = idetifier
+                    .full_name
+                    .clone()
+                    .unwrap_or_else(|| "<unknown>".to_string());
+                let type_str = v.unwrap_or("<unknown>").to_string();
+                Err(ProgramError::InvalidIdentifierTypeForPc(name, type_str).into())
+            }
         }
     }
 }

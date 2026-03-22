@@ -23,7 +23,7 @@ UNAME := $(shell uname)
 	hyper-threading-benchmarks \
 	cairo_bench_programs cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_2_test_contracts \
 	cairo_trace cairo-vm_trace cairo_proof_trace cairo-vm_proof_trace python-deps python-deps-macos \
-	build-cairo-lang hint-accountant \ create-proof-programs-symlinks \
+	build-cairo-lang hint-accountant \ create-proof-programs-symlinks tests_cairo_programs \
 	$(RELBIN) $(DBGBIN)
 
 # Proof mode consumes too much memory with cairo-lang to execute
@@ -268,6 +268,21 @@ run:
 check:
 	cargo check
 
+# ======================
+# Tests Cairo Programs
+# ======================
+
+TESTS_CAIRO_DIR=tests_cairo
+TESTS_CAIRO_FILES:=$(shell find $(TESTS_CAIRO_DIR) -name "*.cairo")
+COMPILED_TESTS_CAIRO:=$(patsubst %.cairo, %.json, $(TESTS_CAIRO_FILES))
+
+$(TESTS_CAIRO_DIR)/%.json: $(TESTS_CAIRO_DIR)/%.cairo
+	. cairo-vm-env/bin/activate && cairo-compile \
+		--cairo_path="$(TESTS_CAIRO_DIR)" \
+		$< --output $@
+
+tests_cairo_programs: $(COMPILED_TESTS_CAIRO)
+
 cairo_test_programs: $(COMPILED_TESTS) $(COMPILED_BAD_TESTS) $(COMPILED_NORETROCOMPAT_TESTS) $(COMPILED_PRINT_TESTS) $(COMPILED_MOD_BUILTIN_TESTS) $(COMPILED_SECP_CAIRO0_HINTS) $(COMPILED_KZG_DA_CAIRO0_HINTS) $(COMPILED_SEGMENT_ARENA_CAIRO0_HINTS)
 cairo_proof_programs: $(COMPILED_PROOF_TESTS) $(COMPILED_MOD_BUILTIN_PROOF_TESTS) $(COMPILED_STWO_EXCLUSIVE_TESTS)
 cairo_bench_programs: $(COMPILED_BENCHES)
@@ -286,7 +301,7 @@ ifdef TEST_COLLECT_COVERAGE
 	TEST_COMMAND:=cargo llvm-cov nextest --no-report
 endif
 
-test: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_2_test_contracts cairo_1_program
+test: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_2_test_contracts cairo_1_program tests_cairo_programs
 	$(TEST_COMMAND) --workspace --features "test_utils, cairo-1-hints"
 test-extensive_hints: cairo_proof_programs cairo_test_programs cairo_1_test_contracts cairo_1_program cairo_2_test_contracts 
 	$(TEST_COMMAND) --workspace --features "test_utils, cairo-1-hints, cairo-0-secp-hints, cairo-0-data-availability-hints, extensive_hints"
