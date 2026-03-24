@@ -142,13 +142,8 @@ fn run_cairo_1_entrypoint(
     // Other args
 
     // Load builtin costs
-    let builtin_costs: Vec<MaybeRelocatable> = vec![
-        0_i64.into(),
-        0_i64.into(),
-        0_i64.into(),
-        0_i64.into(),
-        0_i64.into(),
-    ];
+    let builtin_costs: Vec<MaybeRelocatable> =
+        vec![0.into(), 0.into(), 0.into(), 0.into(), 0.into()];
     let builtin_costs_ptr = runner.vm.add_memory_segment();
     runner
         .vm
@@ -255,13 +250,8 @@ fn run_cairo_1_entrypoint_with_run_resources(
     // Other args
 
     // Load builtin costs
-    let builtin_costs: Vec<MaybeRelocatable> = vec![
-        0_i64.into(),
-        0_i64.into(),
-        0_i64.into(),
-        0_i64.into(),
-        0_i64.into(),
-    ];
+    let builtin_costs: Vec<MaybeRelocatable> =
+        vec![0.into(), 0.into(), 0.into(), 0.into(), 0.into()];
     let builtin_costs_ptr = runner.vm.add_memory_segment();
     runner
         .vm

@@ -38,7 +38,10 @@ impl CairoRunner {
 
     /// Initializes the 11 standard builtins used for Cairo function testing.
     pub fn initialize_all_builtins(&mut self) -> Result<(), RunnerError> {
-        self.vm.builtin_runners.clear();
+        assert!(
+            self.vm.builtin_runners.is_empty(),
+            "initialize_all_builtins called but builtin_runners is not empty"
+        );
         self.program.builtins = ORDERED_BUILTIN_LIST.to_vec();
         self.initialize_program_builtins()
     }
@@ -91,7 +94,7 @@ impl CairoRunner {
         let end = self.initialize_function_entrypoint(
             entrypoint_pc,
             stack,
-            MaybeRelocatable::from(0_i64),
+            MaybeRelocatable::from(0),
         )?;
         self.initialize_vm()?;
         self.run_until_pc(end, hint_processor)
@@ -147,12 +150,14 @@ impl CairoRunner {
 mod tests {
     use super::*;
     use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
+    use crate::serde::deserialize_program::Identifier;
     use crate::types::builtin_name::BuiltinName;
     use crate::types::errors::program_errors::ProgramError;
     use crate::types::layout_name::LayoutName;
     use crate::types::program::Program;
     use crate::types::relocatable::MaybeRelocatable;
     use crate::vm::errors::cairo_run_errors::CairoRunError;
+    use crate::vm::errors::runner_errors::RunnerError;
     use crate::vm::runners::cairo_runner::CairoArg;
     use crate::vm::runners::function_runner::EntryPoint;
     use assert_matches::assert_matches;
@@ -369,6 +374,63 @@ mod tests {
             )
             .is_ok());
         assert_eq!(runner.get_memory_holes().unwrap(), 0);
+    }
+
+    #[test]
+    fn get_pc_from_identifier_function_without_pc_returns_no_pc_error() {
+        let program = load_program(include_bytes!(
+            "../../../../cairo_programs/example_program.json"
+        ));
+        let runner = CairoRunner::new_for_testing(&program).unwrap();
+
+        let identifier = Identifier {
+            type_: Some("function".to_string()),
+            pc: None,
+            full_name: Some("test_func".to_string()),
+            value: None,
+            members: None,
+            cairo_type: None,
+            size: None,
+            destination: None,
+        };
+        assert_matches!(
+            runner.get_pc_from_identifier(&identifier),
+            Err(CairoRunError::Runner(RunnerError::NoPC))
+        );
+    }
+
+    #[test]
+    fn get_pc_from_identifier_alias_without_destination_returns_error() {
+        let program = load_program(include_bytes!(
+            "../../../../cairo_programs/example_program.json"
+        ));
+        let runner = CairoRunner::new_for_testing(&program).unwrap();
+
+        let identifier = Identifier {
+            type_: Some("alias".to_string()),
+            destination: None,
+            full_name: Some("test_alias".to_string()),
+            pc: None,
+            value: None,
+            members: None,
+            cairo_type: None,
+            size: None,
+        };
+        assert_matches!(
+            runner.get_pc_from_identifier(&identifier),
+            Err(CairoRunError::Program(ProgramError::AliasMissingDestination(name))) if name == "test_alias"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "initialize_all_builtins called but builtin_runners is not empty")]
+    fn initialize_all_builtins_panics_when_builtin_runners_not_empty() {
+        let program = load_program(include_bytes!(
+            "../../../../cairo_programs/example_program.json"
+        ));
+        let mut runner = CairoRunner::new_for_testing(&program).unwrap();
+        // builtin_runners is already populated by new_for_testing, calling again should panic
+        runner.initialize_all_builtins().unwrap();
     }
 
     #[test]
