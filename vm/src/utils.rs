@@ -233,7 +233,11 @@ pub mod test_utils {
 
     macro_rules! vm_with_range_check {
         () => {{
-            let mut vm = VirtualMachine::new(false, false);
+            let mut vm = VirtualMachine::new(
+                false,
+                false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
+            );
             vm.builtin_runners = vec![
                 $crate::vm::runners::builtin_runner::RangeCheckBuiltinRunner::<8>::new(
                     Some(8),
@@ -255,12 +259,19 @@ pub mod test_utils {
                 false,
                 false,
                 false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
             )
             .unwrap()
         };
         ($program:expr, $layout:expr) => {
             crate::vm::runners::cairo_runner::CairoRunner::new(
-                &$program, $layout, None, false, false, false,
+                &$program,
+                $layout,
+                None,
+                false,
+                false,
+                false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
             )
             .unwrap()
         };
@@ -272,6 +283,7 @@ pub mod test_utils {
                 $proof_mode,
                 false,
                 false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
             )
             .unwrap()
         };
@@ -283,6 +295,7 @@ pub mod test_utils {
                 $proof_mode,
                 $trace_enabled,
                 false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
             )
             .unwrap()
         };
@@ -401,11 +414,19 @@ pub mod test_utils {
 
     macro_rules! vm {
         () => {{
-            crate::vm::vm_core::VirtualMachine::new(false, false)
+            crate::vm::vm_core::VirtualMachine::new(
+                false,
+                false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
+            )
         }};
 
         ($use_trace:expr) => {{
-            crate::vm::vm_core::VirtualMachine::new($use_trace, false)
+            crate::vm::vm_core::VirtualMachine::new(
+                $use_trace,
+                false,
+                crate::vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
+            )
         }};
     }
     pub(crate) use vm;

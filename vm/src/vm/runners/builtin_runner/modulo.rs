@@ -814,6 +814,7 @@ mod tests {
             types::layout_name::LayoutName,
             utils::test_utils::Program,
             vm::runners::cairo_runner::CairoRunner,
+            vm::runners::cairo_runner::DEFAULT_MAX_TRACEBACK_ENTRIES,
             Felt252,
         };
 
@@ -831,6 +832,7 @@ mod tests {
             proof_mode,
             false,
             false,
+            DEFAULT_MAX_TRACEBACK_ENTRIES,
         )
         .unwrap();
 
