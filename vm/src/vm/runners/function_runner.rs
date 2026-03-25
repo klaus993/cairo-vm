@@ -478,6 +478,30 @@ mod tests {
     }
 
     #[test]
+    fn get_pc_from_identifier_wrong_type_returns_error() {
+        let program = load_program(include_bytes!(
+            "../../../../cairo_programs/example_program.json"
+        ));
+        let runner = CairoRunner::new_for_testing(&program).unwrap();
+
+        let identifier = Identifier {
+            type_: Some("const".to_string()),
+            full_name: Some("test_const".to_string()),
+            pc: None,
+            destination: None,
+            value: None,
+            members: None,
+            cairo_type: None,
+            size: None,
+        };
+        assert_matches!(
+            runner.get_pc_from_identifier(&identifier),
+            Err(CairoRunError::Program(ProgramError::InvalidIdentifierTypeForPc(name, type_)))
+                if name == "test_const" && type_ == "const"
+        );
+    }
+
+    #[test]
     #[should_panic(expected = "initialize_all_builtins called but builtin_runners is not empty")]
     fn initialize_all_builtins_panics_when_builtin_runners_not_empty() {
         let program = load_program(include_bytes!(
@@ -503,13 +527,14 @@ mod tests {
             &mut hint_processor,
         );
 
-        match result {
-            Err(CairoRunError::VmException(exception)) => assert_eq!(
-                exception.error_attr_value,
-                Some(String::from("Error message: Test error\n"))
-            ),
-            Err(_) => panic!("Wrong error returned, expected VmException"),
-            Ok(_) => panic!("Expected run to fail"),
-        }
+        let err = result.expect_err("Expected run to fail");
+
+        assert_matches!(
+            err,
+            CairoRunError::VmException(ref e)
+                if e.error_attr_value == Some(String::from("Error message: Test error\n")),
+            "Expected VmException with error message \"Error message: Test error\\n\", got: {:?}",
+            err
+        );
     }
 }
