@@ -37,6 +37,7 @@ use cairo_lang_utils::{
 use std::{collections::HashMap, iter::Peekable};
 
 use cairo_vm::{
+    cairo_run::CommonCairoRunConfig,
     hint_processor::cairo_1_hint_processor::hint_processor::Cairo1HintProcessor,
     math_utils::signed_felt,
     serde::deserialize_program::{ApTracking, FlowTrackingData, HintParams, ReferenceManager},
@@ -116,6 +117,33 @@ impl Default for Cairo1RunConfig<'_> {
             append_return_values: false,
             dynamic_layout_params: None,
         }
+    }
+}
+
+impl CommonCairoRunConfig for Cairo1RunConfig<'_> {
+    fn trace_enabled(&self) -> bool {
+        self.trace_enabled
+    }
+
+    fn relocate_mem(&self) -> bool {
+        self.relocate_mem
+    }
+
+    fn layout(&self) -> LayoutName {
+        self.layout
+    }
+
+    fn dynamic_layout_params(&self) -> Option<CairoLayoutParams> {
+        self.dynamic_layout_params.clone()
+    }
+
+    fn proof_mode(&self) -> bool {
+        self.proof_mode
+    }
+
+    fn disable_trace_padding(&self) -> bool {
+        // Always false in Cairo1.
+        false
     }
 }
 
@@ -256,14 +284,7 @@ pub fn cairo_run_program(
         RunnerMode::ExecutionMode
     };
 
-    let mut runner = CairoRunner::new_v2(
-        &program,
-        cairo_run_config.layout,
-        cairo_run_config.dynamic_layout_params.clone(),
-        runner_mode,
-        cairo_run_config.trace_enabled,
-        false,
-    )?;
+    let mut runner = CairoRunner::new_v2(&program, &cairo_run_config, runner_mode)?;
     let end = runner.initialize(cairo_run_config.proof_mode)?;
     load_arguments(&mut runner, &cairo_run_config, main_func)?;
 

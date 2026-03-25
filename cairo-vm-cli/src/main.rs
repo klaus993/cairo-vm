@@ -280,8 +280,15 @@ mod tests {
         hint_processor: &mut dyn HintProcessor,
     ) -> Result<CairoRunner, CairoRunError> {
         let program = Program::from_bytes(program_content, Some("main")).unwrap();
-        let mut cairo_runner =
-            CairoRunner::new(&program, LayoutName::all_cairo, None, false, true, false).unwrap();
+        let mut cairo_runner = CairoRunner::new(
+            &program,
+            &CairoRunConfig {
+                layout: LayoutName::all_cairo,
+                trace_enabled: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
         let end = cairo_runner
             .initialize(false)
             .map_err(CairoRunError::Runner)?;

@@ -12,6 +12,8 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 
+* feat: generic cairo run config for runner ctors [#2360](https://github.com/phil-starkware/cairo-vm/pull/2360)
+
 * Add Stwo cairo runner API [#2351](https://github.com/lambdaclass/cairo-vm/pull/2351)
 
 * Add union merge strategy for CHANGELOG.md [#2345](https://github.com/lambdaclass/cairo-vm/pull/2345)
