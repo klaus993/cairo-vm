@@ -216,7 +216,7 @@ pub enum RunnerMode {
 impl CairoRunner {
     /// The `dynamic_layout_params` argument should only be used with dynamic layout.
     /// It is ignored otherwise.
-    pub fn new_v2(program: &Program, config: &CairoRunConfig) -> CairoRunner {
+    pub fn new(program: &Program, config: &CairoRunConfig) -> CairoRunner {
         CairoRunner {
             program: program.clone(),
             vm: VirtualMachine::new(config.trace_enabled, config.disable_trace_padding),
@@ -242,19 +242,8 @@ impl CairoRunner {
         }
     }
 
-    /// Creates a `CairoRunner` for Stwo.
-    /// Same as `new` but without layout parameters. Builtins are created from
-    /// an explicit list via `initialize_stwo` instead of being derived from a layout.
-    /// Must be paired with `initialize_stwo`. Do not use with `initialize`.
-    pub fn new_stwo(
-        program: &Program,
-        config: &CairoRunConfig,
-    ) -> Result<CairoRunner, RunnerError> {
-        Ok(CairoRunner::new_v2(program, config))
-    }
-
     /// Initializes the runner in Stwo mode: creates builtins, segments, entrypoint, and VM.
-    /// Must be used with runners created via `new_stwo`. Do not use with `new`.
+    /// Must be used with runners created via a StwoCairoRunConfig.
     pub fn initialize_stwo(
         &mut self,
         allowed_builtins: &[BuiltinName],
@@ -269,10 +258,6 @@ impl CairoRunner {
         }
         self.initialize_vm()?;
         Ok(end)
-    }
-
-    pub fn new(program: &Program, config: &CairoRunConfig) -> Result<CairoRunner, RunnerError> {
-        Ok(Self::new_v2(program, config))
     }
 
     pub fn initialize(&mut self, allow_missing_builtins: bool) -> Result<Relocatable, RunnerError> {
@@ -5765,8 +5750,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .expect("failed to create runner");
+        );
 
         // We allow missing builtins, as we will simulate them later.
         let end = cairo_runner
@@ -5794,7 +5778,7 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let runner = CairoRunner::new_stwo(
+        let runner = CairoRunner::new(
             &program,
             &StwoCairoRunConfig {
                 runner_mode: RunnerMode::ProofModeCanonical,
@@ -5804,8 +5788,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         assert_eq!(runner.runner_mode, RunnerMode::ProofModeCanonical);
         assert!(runner.execution_public_memory.is_some());
     }
@@ -5817,7 +5800,7 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let runner = CairoRunner::new_stwo(
+        let runner = CairoRunner::new(
             &program,
             &StwoCairoRunConfig {
                 runner_mode: RunnerMode::ExecutionMode,
@@ -5827,8 +5810,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         assert_eq!(runner.runner_mode, RunnerMode::ExecutionMode);
         assert!(runner.execution_public_memory.is_none());
     }
@@ -5855,7 +5837,7 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let mut runner = CairoRunner::new_stwo(
+        let mut runner = CairoRunner::new(
             &program,
             &StwoCairoRunConfig {
                 runner_mode: RunnerMode::ProofModeCanonical,
@@ -5865,8 +5847,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         let allowed = vec![
             BuiltinName::output,
             BuiltinName::pedersen,
@@ -5889,7 +5870,7 @@ mod tests {
     #[test]
     fn initialize_builtins_stwo_rejects_ecdsa() {
         let program = Program::default();
-        let mut runner = CairoRunner::new_stwo(
+        let mut runner = CairoRunner::new(
             &program,
             &StwoCairoRunConfig {
                 runner_mode: RunnerMode::ProofModeCanonical,
@@ -5899,8 +5880,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         match runner.initialize_builtins_stwo(&[BuiltinName::ecdsa]) {
             Err(RunnerError::UnsupportedStwoBuiltin(BuiltinName::ecdsa)) => {}
             _ => panic!("Expected UnsupportedStwoBuiltin(ecdsa) error"),
@@ -5910,7 +5890,7 @@ mod tests {
     #[test]
     fn initialize_builtins_stwo_rejects_keccak() {
         let program = Program::default();
-        let mut runner = CairoRunner::new_stwo(
+        let mut runner = CairoRunner::new(
             &program,
             &StwoCairoRunConfig {
                 runner_mode: RunnerMode::ProofModeCanonical,
@@ -5920,8 +5900,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         match runner.initialize_builtins_stwo(&[BuiltinName::keccak]) {
             Err(RunnerError::UnsupportedStwoBuiltin(BuiltinName::keccak)) => {}
             _ => panic!("Expected UnsupportedStwoBuiltin(keccak) error"),
@@ -5935,7 +5914,7 @@ mod tests {
             Some("main"),
         )
         .unwrap();
-        let mut runner = CairoRunner::new_stwo(
+        let mut runner = CairoRunner::new(
             &program,
             &StwoCairoRunConfig {
                 runner_mode: RunnerMode::ProofModeCanonical,
@@ -5945,8 +5924,7 @@ mod tests {
             }
             .run_config()
             .unwrap(),
-        )
-        .unwrap();
+        );
         // bitwise_builtin_test requires bitwise, but we only allow output
         match runner.initialize_builtins_stwo(&[BuiltinName::output]) {
             Err(RunnerError::UnsupportedStwoBuiltin(BuiltinName::bitwise)) => {}
