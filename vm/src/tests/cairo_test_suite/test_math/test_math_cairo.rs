@@ -33,8 +33,8 @@ static PROGRAM: LazyLock<Program> = LazyLock::new(|| load_cairo_program!("math_t
 static INTERESTING_FELTS: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
     let p = &*CAIRO_PRIME;
     vec![
-        BigUint::from(0u64),
-        BigUint::from(1u64),
+        BigUint::zero(),
+        BigUint::one(),
         BigUint::from(2u64).pow(128) - BigUint::one(),
         BigUint::from(2u64).pow(128),
         BigUint::from(2u64).pow(128) + BigUint::one(),
@@ -100,8 +100,8 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 // Case: a=(2, 5), b=(2, 10)
 // Expected: Success.
 #[case::not_equal_relocs(
-    MaybeRelocatable::from((2isize, 5)),
-    MaybeRelocatable::from((2isize, 10)),
+    MaybeRelocatable::from((2, 5)),
+    MaybeRelocatable::from((2, 10)),
     expect_ok
 )]
 // Equal integers
@@ -116,15 +116,15 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 // Case: a=(1, 5), b=(1, 5)
 // Expected: Error.
 #[case::equal_relocs(
-    MaybeRelocatable::from((1isize, 5)),
-    MaybeRelocatable::from((1isize, 5)),
+    MaybeRelocatable::from((1, 5)),
+    MaybeRelocatable::from((1, 5)),
     expect_assert_not_equal_fail
 )]
 // Non-comparable: relocatable vs int
 // Case: a=(1, 5), b=0
 // Expected: Error.
 #[case::non_comparable_reloc_vs_int(
-   MaybeRelocatable::from((1isize, 5)),
+   MaybeRelocatable::from((1, 5)),
     MaybeRelocatable::from(0),
     expect_diff_type_comparison
 )]
@@ -132,8 +132,8 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 // Case: a=(1, 5), b=(2, 3)
 // Expected: Error.
 #[case::non_comparable_diff_segments(
-    MaybeRelocatable::from((1isize, 5)),
-   MaybeRelocatable::from((2isize, 3)),
+    MaybeRelocatable::from((1, 5)),
+   MaybeRelocatable::from((2, 3)),
     expect_diff_index_comp
 )]
 
@@ -153,10 +153,10 @@ fn test_assert_not_equal(
 // Valid cases (should pass)
 // Case: value=0
 // Expected: Success.
-#[case::zero(BigUint::from(0u64), expect_ok)]
+#[case::zero(BigUint::zero(), expect_ok)]
 // Case: value=1
 // Expected: Success.
-#[case::one(BigUint::from(1u64), expect_ok)]
+#[case::one(BigUint::one(), expect_ok)]
 // Case: value=(2^250)-1
 // Expected: Success.
 #[case::max_valid(BigUint::from(2u64).pow(250) - BigUint::one(), expect_ok)]
@@ -189,7 +189,7 @@ fn test_assert_250_bit(
     // If successful, verify the return value
     if res.is_ok() {
         let ret = runner.vm.get_return_values(1).unwrap();
-        assert_mr_eq!(&ret[0], &rc_base.add_usize(3usize).unwrap());
+        assert_mr_eq!(&ret[0], &rc_base.add_usize(3).unwrap());
     }
 }
 
@@ -264,7 +264,7 @@ fn test_split_felt(mut runner: CairoFunctionRunner, #[case] idx: usize) {
     // ret = [range_check_ptr, high, low]
     assert_mr_eq!(
         &ret[0],
-        &rc_base.add_usize(3usize).unwrap(),
+        &rc_base.add_usize(3).unwrap(),
         "range_check_ptr mismatch for value {value}"
     );
     assert_mr_eq!(&ret[1], &expected_high, "high mismatch for value {value}");
@@ -295,7 +295,7 @@ fn test_assert_le_felt(
         let ret = runner.vm.get_return_values(1).unwrap();
         assert_mr_eq!(
             &ret[0],
-            &rc_base.add_usize(4usize).unwrap(),
+            &rc_base.add_usize(4).unwrap(),
             "range_check_ptr mismatch for {value0} <= {value1}"
         );
     } else {
@@ -328,7 +328,7 @@ fn test_assert_lt_felt(
         let ret = runner.vm.get_return_values(1).unwrap();
         assert_mr_eq!(
             &ret[0],
-            &rc_base.add_usize(4usize).unwrap(),
+            &rc_base.add_usize(4).unwrap(),
             "range_check_ptr mismatch for {value0} < {value1}"
         );
     } else {
@@ -376,7 +376,7 @@ fn test_abs_value(
     let abs_value = value_case.magnitude();
     if abs_value < &rc_bound_biguint {
         let ret = runner.vm.get_return_values(2).unwrap();
-        assert_mr_eq!(&ret[0], &rc_base.add_usize(1usize).unwrap());
+        assert_mr_eq!(&ret[0], &rc_base.add_usize(1).unwrap());
         assert_mr_eq!(&ret[1], abs_value);
     }
 }
@@ -423,7 +423,7 @@ fn test_sign(
         let expected_rc_ptr = if value_case.is_zero() {
             rc_base
         } else {
-            rc_base.add_usize(1usize).unwrap()
+            rc_base.add_usize(1).unwrap()
         };
         assert_mr_eq!(&ret[0], &expected_rc_ptr);
 
@@ -552,7 +552,7 @@ fn test_unsigned_div_rem(
         let ret = runner.vm.get_return_values(3).unwrap();
         assert_mr_eq!(
             &ret[0],
-            &rc_base.add_usize(3usize).unwrap(),
+            &rc_base.add_usize(3).unwrap(),
             "range_check_ptr mismatch"
         );
         assert_mr_eq!(&ret[1], &q, "quotient mismatch");
@@ -690,7 +690,7 @@ fn test_signed_div_rem(
     };
 
     let value = q.clone() * BigInt::from(div.clone()) + BigInt::from(r.clone());
-    let half_prime = BigInt::from((&*CAIRO_PRIME) >> 1usize);
+    let half_prime = BigInt::from((&*CAIRO_PRIME) >> 1);
     let neg_half_prime = -half_prime.clone();
     assert!(
         value >= neg_half_prime && value < half_prime,
@@ -707,7 +707,7 @@ fn test_signed_div_rem(
         let result_q = &ret[1];
         let result_r = &ret[2];
 
-        assert_mr_eq!(rc_ptr, &rc_base.add_usize(4usize).unwrap());
+        assert_mr_eq!(rc_ptr, &rc_base.add_usize(4).unwrap());
         // Expected_q = q % PRIME (field element conversion).
         let expected_q = Felt252::from(&q);
         assert_mr_eq!(result_q, &expected_q);
@@ -720,56 +720,56 @@ fn test_signed_div_rem(
 // Case: value=0x1234FCDA, n=10, base=16, bound=16, expected_output=vec![0xA, 0xD,
 // 0xC, 0xF, 0x4, 0x3, 0x2, 0x1, 0, 0] Expected: Success.
 #[case::hex_digits(
-    0x1234FCDA_i64,
-    10_i64,
-    16_i64,
-    16_i64,
+    0x1234FCDA,
+    10,
+    16,
+    16,
     Some(vec![0xA, 0xD, 0xC, 0xF, 0x4, 0x3, 0x2, 0x1, 0, 0]),
     expect_ok
 )]
 // Case: value=0x1234FCDA, n=10, base=256, bound=256, expected_output=vec![0xDA,
 // 0xFC, 0x34, 0x12, 0, 0, 0, 0, 0, 0] Expected: Success.
 #[case::byte_pairs(
-    0x1234FCDA_i64,
-    10_i64,
-    256_i64,
-    256_i64,
+    0x1234FCDA,
+    10,
+    256,
+    256,
     Some(vec![0xDA, 0xFC, 0x34, 0x12, 0, 0, 0, 0, 0, 0]),
     expect_ok
 )]
 // Case: value=0x1234FCDA, n=10, base=16, bound=15, expected_output=random
 // Expected: Error.
 #[case::out_of_bound_limb(
-    0x1234FCDA_i64,
-    10_i64,
-    16_i64,
-    15_i64,
+    0x1234FCDA,
+    10,
+    16,
+    15,
     None,
     expect_split_int_limb_out_of_range
 )]
 // Case: value=0xAAA, n=3, base=16, bound=11, expected_output=vec![0xA, 0xA, 0xA]
 // Expected: Success.
 #[case::exact_fit(
-    0xAAA_i64,
-    3_i64,
-    16_i64,
-    11_i64,
+    0xAAA,
+    3,
+    16,
+    11,
     Some(vec![0xA, 0xA, 0xA]),
     expect_ok
 )]
 // Case: value=0xAAA, n=3, base=16, bound=10, expected_output=random
 // Expected: Error.
 #[case::bound_too_small(
-    0xAAA_i64,
-    3_i64,
-    16_i64,
-    10_i64,
+    0xAAA,
+    3,
+    16,
+    10,
     None,
     expect_split_int_limb_out_of_range
 )]
 // Case: value=0xAAA, n=2, base=16, bound=16, expected_output=random
 // Expected: Error.
-#[case::value_out_of_range(0xAAA_i64, 2_i64, 16_i64, 16_i64, None, expect_split_int_not_zero)]
+#[case::value_out_of_range(0xAAA, 2, 16, 16, None, expect_split_int_not_zero)]
 fn test_split_int(
     mut runner: CairoFunctionRunner,
     #[case] value: i64,
@@ -794,7 +794,7 @@ fn test_split_int(
         let expected_output =
             expected_output.expect("expected_output must be set for success case");
         let ret = runner.vm.get_return_values(1).unwrap();
-        assert_mr_eq!(&ret[0], &rc_base.add_usize(2usize * n as usize).unwrap());
+        assert_mr_eq!(&ret[0], &rc_base.add_usize(2 * n as usize).unwrap());
 
         let range = runner.vm.get_range(output, n as usize);
         assert_eq!(
@@ -819,10 +819,10 @@ fn test_split_int(
 #[rstest]
 // Case: value=0
 // Expected: Success.
-#[case::zero(Some(BigUint::from(0u64)), expect_ok)]
+#[case::zero(Some(BigUint::zero()), expect_ok)]
 // Case: value=1
 // Expected: Success.
-#[case::one(Some(BigUint::from(1u64)), expect_ok)]
+#[case::one(Some(BigUint::one()), expect_ok)]
 // Case: value=2
 // Expected: Success.
 #[case::two(Some(BigUint::from(2u64)), expect_ok)]
@@ -869,7 +869,7 @@ fn test_sqrt(
 ) {
     let value = value.unwrap_or_else(|| {
         let mut rng = thread_rng();
-        let upper = BigUint::one() << 250usize;
+        let upper = BigUint::from(2u64).pow(250);
         rng.gen_biguint_range(&BigUint::zero(), &upper)
     });
 
@@ -885,7 +885,7 @@ fn test_sqrt(
         let ret = runner.vm.get_return_values(2).unwrap();
         assert_mr_eq!(
             &ret[0],
-            &rc_base.add_usize(4usize).unwrap(),
+            &rc_base.add_usize(4).unwrap(),
             "range_check_ptr mismatch for sqrt({value})"
         );
 
@@ -975,12 +975,12 @@ fn test_is_quad_residue(mut runner: CairoFunctionRunner, #[case] x: Option<BigUi
         .unwrap();
     let ret2 = runner2.vm.get_return_values(1).unwrap();
 
-    let expected2 = if x.is_zero() {
-        1i64 // 3 * 0 = 0, which is QR
+    let expected2: i64 = if x.is_zero() {
+        1 // 3 * 0 = 0, which is QR
     } else if is_quad_residue_mod_prime(&x) == 1 {
-        0i64 // x is QR, 3 is not QR, so 3*x is not QR
+        0 // x is QR, 3 is not QR, so 3*x is not QR
     } else {
-        1i64 // x is not QR, 3 is not QR, so 3*x is QR (product of two non-QR is QR)
+        1 // x is not QR, 3 is not QR, so 3*x is QR (product of two non-QR is QR)
     };
     assert_mr_eq!(
         &ret2[0],
