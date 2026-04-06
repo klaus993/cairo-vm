@@ -1,7 +1,7 @@
 //! Function runner extension methods for [`CairoRunner`].
 //!
 //! Provides a simplified API for executing individual Cairo 0 functions by name or PC.
-//! Enabled by the `function_runner` feature flag.
+//! Enabled by the `test_utils` feature flag.
 
 use crate::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 use crate::hint_processor::hint_processor_definition::HintProcessor;
