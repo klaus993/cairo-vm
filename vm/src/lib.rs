@@ -26,7 +26,7 @@ pub mod types;
 pub mod utils;
 pub mod vm;
 
-#[cfg(feature = "function_runner")]
+#[cfg(feature = "test_utils")]
 pub mod test_helpers;
 
 // TODO: use `Felt` directly
