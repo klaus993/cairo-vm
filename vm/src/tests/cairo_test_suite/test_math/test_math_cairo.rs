@@ -355,11 +355,7 @@ fn test_assert_lt_felt(
 // Case: value_case=-RC_BOUND
 // Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
-fn test_abs_value(
-    mut runner: CairoRunner,
-    #[case] value_case: BigInt,
-    #[case] check: VmCheck<()>,
-) {
+fn test_abs_value(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check: VmCheck<()>) {
     let rc_base = runner
         .get_builtin_base(BuiltinName::range_check)
         .expect("range_check builtin not found");
@@ -398,11 +394,7 @@ fn test_abs_value(
 // Case: value_case=-RC_BOUND
 // Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
-fn test_sign(
-    mut runner: CairoRunner,
-    #[case] value_case: BigInt,
-    #[case] check: VmCheck<()>,
-) {
+fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check: VmCheck<()>) {
     let rc_base = runner
         .get_builtin_base(BuiltinName::range_check)
         .expect("range_check builtin not found");
@@ -848,11 +840,7 @@ fn test_split_int(
     Some(&*CAIRO_PRIME - BigUint::one()),
     expect_hint_value_outside_250_bit_range
 )]
-fn test_sqrt(
-    mut runner: CairoRunner,
-    #[case] value: Option<BigUint>,
-    #[case] check: VmCheck<()>,
-) {
+fn test_sqrt(mut runner: CairoRunner, #[case] value: Option<BigUint>, #[case] check: VmCheck<()>) {
     let value = value.unwrap_or_else(|| {
         let mut rng = thread_rng();
         let upper = BigUint::from(2u64).pow(250);
