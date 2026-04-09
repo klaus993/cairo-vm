@@ -3,7 +3,6 @@
 use std::sync::LazyLock;
 
 use super::math_test_utils::{is_quad_residue_mod_prime, MAX_DIV, RC_BOUND};
-use crate::test_helpers::test_utils::assert_mr_eq;
 use crate::cairo_args;
 use crate::load_cairo_program;
 use crate::test_helpers::error_utils::{
@@ -13,6 +12,7 @@ use crate::test_helpers::error_utils::{
     expect_non_le_felt252, expect_ok, expect_split_int_limb_out_of_range,
     expect_split_int_not_zero, VmCheck,
 };
+use crate::test_helpers::test_utils::assert_mr_eq;
 use crate::types::builtin_name::BuiltinName;
 use crate::types::program::Program;
 use crate::types::relocatable::MaybeRelocatable;
