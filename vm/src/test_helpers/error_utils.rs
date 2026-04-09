@@ -41,132 +41,91 @@ macro_rules! assert_vm_result {
 }
 
 /// Type alias for check functions that validate test results.
-pub type VmCheck<T> = fn(&std::result::Result<T, CairoRunError>);
+pub type VmCheck<T> = fn(&Result<T, CairoRunError>);
 
 /// Asserts that the result is `Ok`.
-pub fn expect_ok(res: &std::result::Result<(), CairoRunError>) {
+pub fn expect_ok(res: &Result<(), CairoRunError>) {
     assert_vm_result!(res, ok);
 }
 
-/// Asserts that the result is `HintError::AssertNotZero`.
-pub fn expect_hint_assert_not_zero(res: &std::result::Result<(), CairoRunError>) {
+/// Asserts that the result is a `VirtualMachineError` satisfying `predicate`.
+fn expect_vm_error(
+    res: &Result<(), CairoRunError>,
+    predicate: impl Fn(&VirtualMachineError) -> bool,
+) {
+    assert_vm_result!(
+        res,
+        err CairoRunError::VmException(VmException { inner_exc, .. }) if predicate(inner_exc)
+    );
+}
+
+/// Asserts that the result is a `HintError` satisfying `predicate`.
+fn expect_hint_error(
+    res: &Result<(), CairoRunError>,
+    predicate: impl Fn(&HintError) -> bool,
+) {
     assert_vm_result!(
         res,
         err CairoRunError::VmException(VmException {
             inner_exc: VirtualMachineError::Hint(boxed),
             ..
-        }) if matches!(boxed.as_ref(), (_, HintError::AssertNotZero(_)))
+        }) if predicate(&boxed.as_ref().1)
     );
+}
+
+/// Asserts that the result is `HintError::AssertNotZero`.
+pub fn expect_hint_assert_not_zero(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::AssertNotZero(_)));
 }
 
 /// Asserts that the result is `HintError::AssertNotEqualFail`.
-pub fn expect_assert_not_equal_fail(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::AssertNotEqualFail(_)))
-    );
+pub fn expect_assert_not_equal_fail(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::AssertNotEqualFail(_)));
 }
 
-/// Asserts that the result is `HintError::Internal(VirtualMachineError::DiffTypeComparison)`.
-pub fn expect_diff_type_comparison(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::Internal(VirtualMachineError::DiffTypeComparison(_))))
-    );
+/// Asserts that the result is `VirtualMachineError::DiffTypeComparison`.
+pub fn expect_diff_type_comparison(res: &Result<(), CairoRunError>) {
+    expect_vm_error(res, |e| matches!(e, VirtualMachineError::DiffTypeComparison(_)));
 }
 
-/// Asserts that the result is `HintError::Internal(VirtualMachineError::DiffIndexComp)`.
-pub fn expect_diff_index_comp(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::Internal(VirtualMachineError::DiffIndexComp(_))))
-    );
+/// Asserts that the result is `VirtualMachineError::DiffIndexComp`.
+pub fn expect_diff_index_comp(res: &Result<(), CairoRunError>) {
+    expect_vm_error(res, |e| matches!(e, VirtualMachineError::DiffIndexComp(_)));
 }
 
 /// Asserts that the result is `HintError::ValueOutside250BitRange`.
-pub fn expect_hint_value_outside_250_bit_range(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::ValueOutside250BitRange(_)))
-    );
+pub fn expect_hint_value_outside_250_bit_range(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::ValueOutside250BitRange(_)));
 }
 
 /// Asserts that the result is `HintError::NonLeFelt252`.
-pub fn expect_non_le_felt252(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::NonLeFelt252(_)))
-    );
+pub fn expect_non_le_felt252(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::NonLeFelt252(_)));
 }
 
 /// Asserts that the result is `HintError::AssertLtFelt252`.
-pub fn expect_assert_lt_felt252(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::AssertLtFelt252(_)))
-    );
+pub fn expect_assert_lt_felt252(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::AssertLtFelt252(_)));
 }
 
 /// Asserts that the result is `HintError::ValueOutsideValidRange`.
-pub fn expect_hint_value_outside_valid_range(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::ValueOutsideValidRange(_)))
-    );
+pub fn expect_hint_value_outside_valid_range(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::ValueOutsideValidRange(_)));
 }
 
 /// Asserts that the result is `HintError::OutOfValidRange`.
-pub fn expect_hint_out_of_valid_range(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::OutOfValidRange(_)))
-    );
+pub fn expect_hint_out_of_valid_range(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::OutOfValidRange(_)));
 }
 
 /// Asserts that the result is `HintError::SplitIntNotZero`.
-pub fn expect_split_int_not_zero(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::SplitIntNotZero))
-    );
+pub fn expect_split_int_not_zero(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::SplitIntNotZero));
 }
 
 /// Asserts that the result is `HintError::SplitIntLimbOutOfRange`.
-pub fn expect_split_int_limb_out_of_range(res: &std::result::Result<(), CairoRunError>) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException {
-            inner_exc: VirtualMachineError::Hint(boxed),
-            ..
-        }) if matches!(boxed.as_ref(), (_, HintError::SplitIntLimbOutOfRange(_)))
-    );
+pub fn expect_split_int_limb_out_of_range(res: &Result<(), CairoRunError>) {
+    expect_hint_error(res, |e| matches!(e, HintError::SplitIntLimbOutOfRange(_)));
 }
 
 #[cfg(test)]
@@ -178,16 +137,29 @@ mod tests {
             vm_errors::VirtualMachineError, vm_exception::VmException,
         },
     };
+    use rstest::rstest;
 
     use super::*;
 
     /// Wraps a `HintError` in the full `CairoRunError::VmException` chain expected by the checkers.
     #[allow(clippy::result_large_err)]
-    fn hint_err(hint_error: HintError) -> std::result::Result<(), CairoRunError> {
+    fn hint_err(hint_error: HintError) -> Result<(), CairoRunError> {
         Err(CairoRunError::VmException(VmException {
-            pc: Relocatable::from((0, 0)),
+            pc: Relocatable::default(),
             inst_location: None,
             inner_exc: VirtualMachineError::Hint(Box::new((0, hint_error))),
+            error_attr_value: None,
+            traceback: None,
+        }))
+    }
+
+    /// Wraps a `VirtualMachineError` in `CairoRunError::VmException` directly.
+    #[allow(clippy::result_large_err)]
+    fn vm_err(vm_error: VirtualMachineError) -> Result<(), CairoRunError> {
+        Err(CairoRunError::VmException(VmException {
+            pc: Relocatable::default(),
+            inst_location: None,
+            inner_exc: vm_error,
             error_attr_value: None,
             traceback: None,
         }))
@@ -217,94 +189,55 @@ mod tests {
         expect_ok(&Ok(()));
     }
 
-    /// `expect_hint_assert_not_zero` does not panic on `HintError::AssertNotZero`.
-    #[test]
-    fn expect_hint_assert_not_zero_passes() {
-        let res = hint_err(HintError::AssertNotZero(Box::default()));
-        expect_hint_assert_not_zero(&res);
-    }
+    // --- happy path: each checker passes on its correct error variant ---
 
-    /// `expect_assert_not_equal_fail` does not panic on `HintError::AssertNotEqualFail`.
-    #[test]
-    fn expect_assert_not_equal_fail_passes() {
-        let res = hint_err(HintError::AssertNotEqualFail(Box::new((
+    #[rstest]
+    #[case::hint_assert_not_zero(
+        expect_hint_assert_not_zero,
+        hint_err(HintError::AssertNotZero(Box::default()))
+    )]
+    #[case::assert_not_equal_fail(
+        expect_assert_not_equal_fail,
+        hint_err(HintError::AssertNotEqualFail(Box::new((
             MaybeRelocatable::from(0),
             MaybeRelocatable::from(0),
-        ))));
-        expect_assert_not_equal_fail(&res);
+        ))))
+    )]
+    #[case::diff_type_comparison(
+        expect_diff_type_comparison,
+        vm_err(VirtualMachineError::DiffTypeComparison(Box::new((
+            MaybeRelocatable::from(0),
+            MaybeRelocatable::from((0, 0)),
+        ))))
+    )]
+    #[case::diff_index_comp(expect_diff_index_comp, vm_err(VirtualMachineError::DiffIndexComp(Box::default())))]
+    #[case::hint_value_outside_250_bit_range(
+        expect_hint_value_outside_250_bit_range,
+        hint_err(HintError::ValueOutside250BitRange(Box::default()))
+    )]
+    #[case::non_le_felt252(expect_non_le_felt252, hint_err(HintError::NonLeFelt252(Box::default())))]
+    #[case::assert_lt_felt252(expect_assert_lt_felt252, hint_err(HintError::AssertLtFelt252(Box::default())))]
+    #[case::hint_value_outside_valid_range(
+        expect_hint_value_outside_valid_range,
+        hint_err(HintError::ValueOutsideValidRange(Box::default()))
+    )]
+    #[case::hint_out_of_valid_range(
+        expect_hint_out_of_valid_range,
+        hint_err(HintError::OutOfValidRange(Box::default()))
+    )]
+    #[case::split_int_not_zero(expect_split_int_not_zero, hint_err(HintError::SplitIntNotZero))]
+    #[case::split_int_limb_out_of_range(
+        expect_split_int_limb_out_of_range,
+        hint_err(HintError::SplitIntLimbOutOfRange(Box::default()))
+    )]
+    fn checker_passes_on_correct_variant(
+        #[case] checker: VmCheck<()>,
+        #[case] res: Result<(), CairoRunError>,
+    ) {
+        checker(&res);
     }
 
-    /// `expect_diff_type_comparison` does not panic on `VirtualMachineError::DiffTypeComparison`.
-    #[test]
-    fn expect_diff_type_comparison_passes() {
-        let res = hint_err(HintError::Internal(
-            VirtualMachineError::DiffTypeComparison(Box::new((
-                MaybeRelocatable::from(0),
-                MaybeRelocatable::from((0, 0)),
-            ))),
-        ));
-        expect_diff_type_comparison(&res);
-    }
-
-    /// `expect_diff_index_comp` does not panic on `VirtualMachineError::DiffIndexComp`.
-    #[test]
-    fn expect_diff_index_comp_passes() {
-        let res = hint_err(HintError::Internal(VirtualMachineError::DiffIndexComp(
-            Box::new((Relocatable::from((0, 0)), Relocatable::from((1, 0)))),
-        )));
-        expect_diff_index_comp(&res);
-    }
-
-    /// `expect_hint_value_outside_250_bit_range` does not panic on `HintError::ValueOutside250BitRange`.
-    #[test]
-    fn expect_hint_value_outside_250_bit_range_passes() {
-        let res = hint_err(HintError::ValueOutside250BitRange(Box::default()));
-        expect_hint_value_outside_250_bit_range(&res);
-    }
-
-    /// `expect_non_le_felt252` does not panic on `HintError::NonLeFelt252`.
-    #[test]
-    fn expect_non_le_felt252_passes() {
-        let res = hint_err(HintError::NonLeFelt252(Box::default()));
-        expect_non_le_felt252(&res);
-    }
-
-    /// `expect_assert_lt_felt252` does not panic on `HintError::AssertLtFelt252`.
-    #[test]
-    fn expect_assert_lt_felt252_passes() {
-        let res = hint_err(HintError::AssertLtFelt252(Box::default()));
-        expect_assert_lt_felt252(&res);
-    }
-
-    /// `expect_hint_value_outside_valid_range` does not panic on `HintError::ValueOutsideValidRange`.
-    #[test]
-    fn expect_hint_value_outside_valid_range_passes() {
-        let res = hint_err(HintError::ValueOutsideValidRange(Box::default()));
-        expect_hint_value_outside_valid_range(&res);
-    }
-
-    /// `expect_hint_out_of_valid_range` does not panic on `HintError::OutOfValidRange`.
-    #[test]
-    fn expect_hint_out_of_valid_range_passes() {
-        let res = hint_err(HintError::OutOfValidRange(Box::default()));
-        expect_hint_out_of_valid_range(&res);
-    }
-
-    /// `expect_split_int_not_zero` does not panic on `HintError::SplitIntNotZero`.
-    #[test]
-    fn expect_split_int_not_zero_passes() {
-        let res = hint_err(HintError::SplitIntNotZero);
-        expect_split_int_not_zero(&res);
-    }
-
-    /// `expect_split_int_limb_out_of_range` does not panic on `HintError::SplitIntLimbOutOfRange`.
-    #[test]
-    fn expect_split_int_limb_out_of_range_passes() {
-        let res = hint_err(HintError::SplitIntLimbOutOfRange(Box::default()));
-        expect_split_int_limb_out_of_range(&res);
-    }
-
-    // --- unhappy path: wrong error variant should panic ---
+    // --- unhappy path: macro edge cases ---
 
     /// `assert_vm_result!(ok)` panics when given `Err`.
     #[test]
@@ -338,83 +271,31 @@ mod tests {
     #[test]
     #[should_panic(expected = "Expected Ok, got Err")]
     fn expect_ok_panics_on_err() {
-        expect_ok(&hint_err(HintError::SplitIntNotZero));
+        expect_ok(&hint_err(HintError::Dummy));
     }
 
-    /// Each `expect_*` checker panics when given a different error variant.
-    #[test]
+    // --- unhappy path: each checker panics on a wrong error variant ---
+
+    #[rstest]
+    #[case::hint_assert_not_zero(expect_hint_assert_not_zero)]
+    #[case::assert_not_equal_fail(expect_assert_not_equal_fail)]
+    #[case::hint_value_outside_250_bit_range(expect_hint_value_outside_250_bit_range)]
+    #[case::non_le_felt252(expect_non_le_felt252)]
+    #[case::assert_lt_felt252(expect_assert_lt_felt252)]
+    #[case::hint_value_outside_valid_range(expect_hint_value_outside_valid_range)]
+    #[case::hint_out_of_valid_range(expect_hint_out_of_valid_range)]
+    #[case::split_int_not_zero(expect_split_int_not_zero)]
+    #[case::split_int_limb_out_of_range(expect_split_int_limb_out_of_range)]
     #[should_panic(expected = "Unexpected error variant")]
-    fn expect_hint_assert_not_zero_panics_on_wrong_variant() {
-        expect_hint_assert_not_zero(&hint_err(HintError::SplitIntNotZero));
+    fn hint_checker_panics_on_dummy_hint_error(#[case] checker: VmCheck<()>) {
+        checker(&hint_err(HintError::Dummy));
     }
 
-    /// `expect_assert_not_equal_fail` panics when given a different error variant.
-    #[test]
+    #[rstest]
+    #[case::diff_type_comparison(expect_diff_type_comparison)]
+    #[case::diff_index_comp(expect_diff_index_comp)]
     #[should_panic(expected = "Unexpected error variant")]
-    fn expect_assert_not_equal_fail_panics_on_wrong_variant() {
-        expect_assert_not_equal_fail(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_diff_type_comparison` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_diff_type_comparison_panics_on_wrong_variant() {
-        expect_diff_type_comparison(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_diff_index_comp` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_diff_index_comp_panics_on_wrong_variant() {
-        expect_diff_index_comp(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_hint_value_outside_250_bit_range` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_hint_value_outside_250_bit_range_panics_on_wrong_variant() {
-        expect_hint_value_outside_250_bit_range(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_non_le_felt252` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_non_le_felt252_panics_on_wrong_variant() {
-        expect_non_le_felt252(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_assert_lt_felt252` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_assert_lt_felt252_panics_on_wrong_variant() {
-        expect_assert_lt_felt252(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_hint_value_outside_valid_range` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_hint_value_outside_valid_range_panics_on_wrong_variant() {
-        expect_hint_value_outside_valid_range(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_hint_out_of_valid_range` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_hint_out_of_valid_range_panics_on_wrong_variant() {
-        expect_hint_out_of_valid_range(&hint_err(HintError::SplitIntNotZero));
-    }
-
-    /// `expect_split_int_not_zero` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_split_int_not_zero_panics_on_wrong_variant() {
-        expect_split_int_not_zero(&hint_err(HintError::SplitIntLimbOutOfRange(Box::default())));
-    }
-
-    /// `expect_split_int_limb_out_of_range` panics when given a different error variant.
-    #[test]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn expect_split_int_limb_out_of_range_panics_on_wrong_variant() {
-        expect_split_int_limb_out_of_range(&hint_err(HintError::SplitIntNotZero));
+    fn vm_checker_panics_on_dummy_vm_error(#[case] checker: VmCheck<()>) {
+        checker(&vm_err(VirtualMachineError::Dummy));
     }
 }

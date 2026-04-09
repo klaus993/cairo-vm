@@ -1,3 +1,5 @@
+use crate::types::relocatable::MaybeRelocatable;
+
 /// Loads a compiled Cairo `.json` program from the same directory as the calling source file.
 ///
 /// Pass only the filename (no directory prefix). The directory is inferred from the call site
@@ -38,31 +40,37 @@ macro_rules! load_cairo_program {
     }};
 }
 
-/// Asserts that a `MaybeRelocatable` reference equals a value convertible into `MaybeRelocatable`.
-#[macro_export]
-macro_rules! assert_mr_eq {
-    ($left:expr, $right:expr) => {{
-        let right_mr = match ($right).try_into() {
-            Ok(v) => v,
-            Err(e) => panic!("conversion to MaybeRelocatable failed: {e:?}"),
-        };
-        assert_eq!($left, &right_mr);
-    }};
-    ($left:expr, $right:expr, $($arg:tt)+) => {{
-        let right_mr = match ($right).try_into() {
-            Ok(v) => v,
-            Err(e) => panic!("conversion to MaybeRelocatable failed: {e:?}"),
-        };
-        assert_eq!($left, &right_mr, $($arg)+);
-    }};
+/// Asserts that two values are equal after converting both to [`MaybeRelocatable`].
+///
+/// If the left conversion fails, the panic message says "left conversion … failed".
+/// If the right conversion fails, it says "right conversion … failed".
+#[track_caller]
+pub fn assert_mr_eq<L, R>(left: L, right: R)
+where
+    L: TryInto<MaybeRelocatable>,
+    L::Error: core::fmt::Debug,
+    R: TryInto<MaybeRelocatable>,
+    R::Error: core::fmt::Debug,
+{
+    let left_mr = match left.try_into() {
+        Ok(v) => v,
+        Err(e) => panic!("left conversion to MaybeRelocatable failed: {e:?}"),
+    };
+    let right_mr = match right.try_into() {
+        Ok(v) => v,
+        Err(e) => panic!("right conversion to MaybeRelocatable failed: {e:?}"),
+    };
+    assert_eq!(left_mr, right_mr);
 }
 
 #[cfg(test)]
 mod tests {
+    use super::assert_mr_eq;
     use crate::types::relocatable::{MaybeRelocatable, Relocatable};
+    use rstest::rstest;
 
     /// A type whose `TryInto<MaybeRelocatable>` always fails, used to exercise
-    /// the `unwrap_or_else` panic branch in `assert_mr_eq!`.
+    /// the conversion-failure panic branch in `assert_mr_eq`.
     struct AlwaysFailConversion;
 
     impl TryFrom<AlwaysFailConversion> for MaybeRelocatable {
@@ -93,80 +101,57 @@ mod tests {
         load_cairo_program!("nonexistent.json");
     }
 
-    /// `assert_mr_eq!` passes when an integer `MaybeRelocatable` equals the given felt value.
+    // --- assert_mr_eq: passing cases ---
+
+    #[rstest]
+    #[case::int(MaybeRelocatable::from(42), MaybeRelocatable::from(42))]
+    #[case::relocatable(
+        MaybeRelocatable::from(Relocatable::from((1, 5))),
+        MaybeRelocatable::from(Relocatable::from((1, 5)))
+    )]
+    fn assert_mr_eq_passes(#[case] left: MaybeRelocatable, #[case] right: MaybeRelocatable) {
+        assert_mr_eq(left, right);
+    }
+
+    // --- assert_mr_eq: mismatch panics ---
+
+    #[rstest]
+    #[case::int_mismatch(MaybeRelocatable::from(1), MaybeRelocatable::from(2))]
+    #[case::felt_vs_relocatable(
+        MaybeRelocatable::from(1),
+        MaybeRelocatable::from(Relocatable::from((0, 1)))
+    )]
+    #[case::relocatable_diff_segment(
+        MaybeRelocatable::from(Relocatable::from((0, 5))),
+        MaybeRelocatable::from(Relocatable::from((1, 5)))
+    )]
+    #[case::relocatable_diff_offset(
+        MaybeRelocatable::from(Relocatable::from((1, 0))),
+        MaybeRelocatable::from(Relocatable::from((1, 1)))
+    )]
+    #[should_panic]
+    fn assert_mr_eq_panics_on_mismatch(
+        #[case] left: MaybeRelocatable,
+        #[case] right: MaybeRelocatable,
+    ) {
+        assert_mr_eq(left, right);
+    }
+
+    // --- assert_mr_eq: conversion failure panics ---
+
+    /// Panics with "right conversion" message when right `try_into` fails.
     #[test]
-    fn assert_mr_eq_int_passes() {
+    #[should_panic(expected = "right conversion to MaybeRelocatable failed")]
+    fn assert_mr_eq_panics_on_right_conversion_failure() {
         let val = MaybeRelocatable::from(42);
-        assert_mr_eq!(&val, 42);
+        assert_mr_eq(&val, AlwaysFailConversion);
     }
 
-    /// `assert_mr_eq!` passes when a relocatable `MaybeRelocatable` equals the given pair.
+    /// Panics with "left conversion" message when left `try_into` fails.
     #[test]
-    fn assert_mr_eq_relocatable_passes() {
-        let val = MaybeRelocatable::from(Relocatable::from((1, 5)));
-        assert_mr_eq!(&val, Relocatable::from((1, 5)));
-    }
-
-    /// `assert_mr_eq!` passes with a custom message format.
-    #[test]
-    fn assert_mr_eq_with_message_passes() {
-        let val = MaybeRelocatable::from(7);
-        assert_mr_eq!(&val, 7, "value at index {} should be 7", 0);
-    }
-
-    /// `assert_mr_eq!` panics when values differ.
-    #[test]
-    #[should_panic]
-    fn assert_mr_eq_panics_on_mismatch() {
-        let val = MaybeRelocatable::from(1);
-        assert_mr_eq!(&val, 2);
-    }
-
-    /// `assert_mr_eq!` panics with a custom message when values differ.
-    #[test]
-    #[should_panic(expected = "wrong value")]
-    fn assert_mr_eq_with_message_panics_on_mismatch() {
-        let val = MaybeRelocatable::from(1);
-        assert_mr_eq!(&val, 2, "wrong value");
-    }
-
-    /// `assert_mr_eq!` panics when comparing a felt against a relocatable.
-    #[test]
-    #[should_panic]
-    fn assert_mr_eq_panics_felt_vs_relocatable() {
-        let val = MaybeRelocatable::from(1);
-        assert_mr_eq!(&val, Relocatable::from((0, 1)));
-    }
-
-    /// `assert_mr_eq!` panics when relocatables have the same offset but different segments.
-    #[test]
-    #[should_panic]
-    fn assert_mr_eq_panics_relocatable_diff_segment() {
-        let val = MaybeRelocatable::from(Relocatable::from((0, 5)));
-        assert_mr_eq!(&val, Relocatable::from((1, 5)));
-    }
-
-    /// `assert_mr_eq!` panics when relocatables have the same segment but different offsets.
-    #[test]
-    #[should_panic]
-    fn assert_mr_eq_panics_relocatable_diff_offset() {
-        let val = MaybeRelocatable::from(Relocatable::from((1, 0)));
-        assert_mr_eq!(&val, Relocatable::from((1, 1)));
-    }
-
-    /// `assert_mr_eq!` (no-message variant) panics when `try_into` conversion fails.
-    #[test]
-    #[should_panic(expected = "conversion to MaybeRelocatable failed")]
-    fn assert_mr_eq_panics_on_conversion_failure() {
+    #[should_panic(expected = "left conversion to MaybeRelocatable failed")]
+    fn assert_mr_eq_panics_on_left_conversion_failure() {
         let val = MaybeRelocatable::from(42);
-        assert_mr_eq!(&val, AlwaysFailConversion);
-    }
-
-    /// `assert_mr_eq!` (message variant) panics when `try_into` conversion fails.
-    #[test]
-    #[should_panic(expected = "conversion to MaybeRelocatable failed")]
-    fn assert_mr_eq_with_message_panics_on_conversion_failure() {
-        let val = MaybeRelocatable::from(42);
-        assert_mr_eq!(&val, AlwaysFailConversion, "should not reach assert_eq");
+        assert_mr_eq(AlwaysFailConversion, &val);
     }
 }
