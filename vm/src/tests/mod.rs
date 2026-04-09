@@ -1,18 +1,19 @@
 use crate::types::layout_name::LayoutName;
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 use crate::vm::errors::cairo_run_errors::CairoRunError;
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 use crate::vm::runners::cairo_runner::RunResources;
 use crate::vm::trace::trace_entry::RelocatedTraceEntry;
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 use crate::Felt252;
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 use crate::{
     hint_processor::cairo_1_hint_processor::hint_processor::Cairo1HintProcessor,
     types::{builtin_name::BuiltinName, relocatable::MaybeRelocatable},
     vm::runners::cairo_runner::{CairoArg, CairoRunner},
+    vm::runners::function_runner::EntryPoint,
 };
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 
 use crate::{
@@ -24,7 +25,7 @@ mod bitwise_test;
 #[cfg(test)]
 mod run_deprecated_contract_class_simplified;
 
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 mod cairo_1_run_from_entrypoint_tests;
 mod cairo_run_test;
 mod pedersen_test;
@@ -91,7 +92,7 @@ fn run_program(
     }
 }
 
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 // Runs a contract entrypoint with given arguments and checks its return values
 // Doesn't use a syscall_handler
 fn run_cairo_1_entrypoint(
@@ -153,7 +154,7 @@ fn run_cairo_1_entrypoint(
     let core_program_end_ptr =
         (runner.program_base.unwrap() + runner.program.shared_program_data.data.len()).unwrap();
     let program_extra_data: Vec<MaybeRelocatable> =
-        vec![0x208B7FFF7FFF7FFE.into(), builtin_costs_ptr.into()];
+        vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     runner
         .vm
         .load_data(core_program_end_ptr, &program_extra_data)
@@ -173,16 +174,17 @@ fn run_cairo_1_entrypoint(
         MaybeRelocatable::from(calldata_start).into(),
         MaybeRelocatable::from(calldata_end).into(),
     ]);
-    let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
 
     // Run contract entrypoint
 
+    let program_segment_size =
+        runner.program.shared_program_data.data.len() + program_extra_data.len();
     runner
         .run_from_entrypoint(
-            entrypoint_offset,
+            EntryPoint::Pc(entrypoint_offset),
             &entrypoint_args,
             true,
-            Some(runner.program.shared_program_data.data.len() + program_extra_data.len()),
+            Some(program_segment_size),
             &mut hint_processor,
         )
         .unwrap();
@@ -201,7 +203,7 @@ fn run_cairo_1_entrypoint(
     assert_eq!(expected_retdata, &retdata);
 }
 
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 #[allow(clippy::result_large_err)]
 /// Equals to fn run_cairo_1_entrypoint
 /// But with run_resources as an input
@@ -260,7 +262,7 @@ fn run_cairo_1_entrypoint_with_run_resources(
     let core_program_end_ptr =
         (runner.program_base.unwrap() + runner.program.shared_program_data.data.len()).unwrap();
     let program_extra_data: Vec<MaybeRelocatable> =
-        vec![0x208B7FFF7FFF7FFE.into(), builtin_costs_ptr.into()];
+        vec![0x208B7FFF7FFF7FFE_u64.into(), builtin_costs_ptr.into()];
     runner
         .vm
         .load_data(core_program_end_ptr, &program_extra_data)
@@ -280,15 +282,16 @@ fn run_cairo_1_entrypoint_with_run_resources(
         MaybeRelocatable::from(calldata_start).into(),
         MaybeRelocatable::from(calldata_end).into(),
     ]);
-    let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
 
     // Run contract entrypoint
 
+    let program_segment_size =
+        runner.program.shared_program_data.data.len() + program_extra_data.len();
     runner.run_from_entrypoint(
-        entrypoint_offset,
+        EntryPoint::Pc(entrypoint_offset),
         &entrypoint_args,
         true,
-        Some(runner.program.shared_program_data.data.len() + program_extra_data.len()),
+        Some(program_segment_size),
         hint_processor,
     )?;
 
@@ -306,7 +309,7 @@ fn run_cairo_1_entrypoint_with_run_resources(
     Ok(retdata)
 }
 
-#[cfg(feature = "cairo-1-hints")]
+#[cfg(all(feature = "cairo-1-hints", feature = "test_utils"))]
 fn get_casm_contract_builtins(
     contract_class: &CasmContractClass,
     entrypoint_offset: usize,
