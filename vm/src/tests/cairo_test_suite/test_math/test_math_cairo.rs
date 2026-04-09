@@ -3,7 +3,7 @@
 use std::sync::LazyLock;
 
 use super::math_test_utils::{is_quad_residue_mod_prime, MAX_DIV, RC_BOUND};
-use crate::assert_mr_eq;
+use crate::test_helpers::test_utils::assert_mr_eq;
 use crate::cairo_args;
 use crate::load_cairo_program;
 use crate::test_helpers::error_utils::{
@@ -189,7 +189,7 @@ fn test_assert_250_bit(
     // If successful, verify the return value
     if res.is_ok() {
         let ret = runner.vm.get_return_values(1).unwrap();
-        assert_mr_eq!(&ret[0], &rc_base.add_usize(3).unwrap());
+        assert_mr_eq(&ret[0], &rc_base.add_usize(3).unwrap());
     }
 }
 
@@ -262,13 +262,9 @@ fn test_split_felt(mut runner: CairoRunner, #[case] idx: usize) {
 
     let ret = runner.vm.get_return_values(3).unwrap();
     // ret = [range_check_ptr, high, low]
-    assert_mr_eq!(
-        &ret[0],
-        &rc_base.add_usize(3).unwrap(),
-        "range_check_ptr mismatch for value {value}"
-    );
-    assert_mr_eq!(&ret[1], &expected_high, "high mismatch for value {value}");
-    assert_mr_eq!(&ret[2], &expected_low, "low mismatch for value {value}");
+    assert_mr_eq(&ret[0], &rc_base.add_usize(3).unwrap());
+    assert_mr_eq(&ret[1], &expected_high);
+    assert_mr_eq(&ret[2], &expected_low);
 }
 
 // ===================== test_assert_le_felt =====================
@@ -293,11 +289,7 @@ fn test_assert_le_felt(
             .run_default_cairo0("assert_le_felt", &args)
             .unwrap_or_else(|e| panic!("assert_le_felt failed for {value0} <= {value1}: {e}"));
         let ret = runner.vm.get_return_values(1).unwrap();
-        assert_mr_eq!(
-            &ret[0],
-            &rc_base.add_usize(4).unwrap(),
-            "range_check_ptr mismatch for {value0} <= {value1}"
-        );
+        assert_mr_eq(&ret[0], &rc_base.add_usize(4).unwrap());
     } else {
         let result = runner.run_default_cairo0("assert_le_felt", &args);
         expect_non_le_felt252(&result);
@@ -326,11 +318,7 @@ fn test_assert_lt_felt(
             .run_default_cairo0("assert_lt_felt", &args)
             .unwrap_or_else(|e| panic!("assert_lt_felt failed for {value0} < {value1}: {e}"));
         let ret = runner.vm.get_return_values(1).unwrap();
-        assert_mr_eq!(
-            &ret[0],
-            &rc_base.add_usize(4).unwrap(),
-            "range_check_ptr mismatch for {value0} < {value1}"
-        );
+        assert_mr_eq(&ret[0], &rc_base.add_usize(4).unwrap());
     } else {
         let result = runner.run_default_cairo0("assert_lt_felt", &args);
         expect_assert_lt_felt252(&result);
@@ -372,8 +360,8 @@ fn test_abs_value(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] c
     let abs_value = value_case.magnitude();
     if abs_value < &rc_bound_biguint {
         let ret = runner.vm.get_return_values(2).unwrap();
-        assert_mr_eq!(&ret[0], &rc_base.add_usize(1).unwrap());
-        assert_mr_eq!(&ret[1], abs_value);
+        assert_mr_eq(&ret[0], &rc_base.add_usize(1).unwrap());
+        assert_mr_eq(&ret[1], abs_value);
     }
 }
 
@@ -417,7 +405,7 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
         } else {
             rc_base.add_usize(1).unwrap()
         };
-        assert_mr_eq!(&ret[0], &expected_rc_ptr);
+        assert_mr_eq(&ret[0], &expected_rc_ptr);
 
         // res == (0 if value == 0 else 1 if value > 0 else PRIME - 1)
         let expected_sign = if value_case.is_zero() {
@@ -427,7 +415,7 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
         } else {
             &*CAIRO_PRIME - BigUint::one()
         };
-        assert_mr_eq!(&ret[1], &expected_sign);
+        assert_mr_eq(&ret[1], &expected_sign);
     }
 }
 
@@ -542,13 +530,9 @@ fn test_unsigned_div_rem(
     // If successful, verify the results match expected values
     if result.is_ok() {
         let ret = runner.vm.get_return_values(3).unwrap();
-        assert_mr_eq!(
-            &ret[0],
-            &rc_base.add_usize(3).unwrap(),
-            "range_check_ptr mismatch"
-        );
-        assert_mr_eq!(&ret[1], &q, "quotient mismatch");
-        assert_mr_eq!(&ret[2], &r, "remainder mismatch");
+        assert_mr_eq(&ret[0], &rc_base.add_usize(3).unwrap());
+        assert_mr_eq(&ret[1], &q);
+        assert_mr_eq(&ret[2], &r);
     }
 }
 
@@ -699,11 +683,11 @@ fn test_signed_div_rem(
         let result_q = &ret[1];
         let result_r = &ret[2];
 
-        assert_mr_eq!(rc_ptr, &rc_base.add_usize(4).unwrap());
+        assert_mr_eq(rc_ptr, &rc_base.add_usize(4).unwrap());
         // Expected_q = q % PRIME (field element conversion).
         let expected_q = Felt252::from(&q);
-        assert_mr_eq!(result_q, &expected_q);
-        assert_mr_eq!(result_r, &r);
+        assert_mr_eq(result_q, &expected_q);
+        assert_mr_eq(result_r, &r);
     }
 }
 
@@ -772,7 +756,7 @@ fn test_split_int(
         let expected_output =
             expected_output.expect("expected_output must be set for success case");
         let ret = runner.vm.get_return_values(1).unwrap();
-        assert_mr_eq!(&ret[0], &rc_base.add_usize(2 * n as usize).unwrap());
+        assert_mr_eq(&ret[0], &rc_base.add_usize(2 * n as usize).unwrap());
 
         let range = runner.vm.get_range(output, n as usize);
         assert_eq!(
@@ -784,11 +768,7 @@ fn test_split_int(
             let actual_val = actual
                 .as_ref()
                 .unwrap_or_else(|| panic!("Missing output at index {i}"));
-            assert_mr_eq!(
-                actual_val.as_ref(),
-                *exp,
-                "split_int output mismatch at index {i}"
-            );
+            assert_mr_eq(actual_val.as_ref(), *exp);
         }
     }
 }
@@ -857,18 +837,10 @@ fn test_sqrt(mut runner: CairoRunner, #[case] value: Option<BigUint>, #[case] ch
 
     if result.is_ok() {
         let ret = runner.vm.get_return_values(2).unwrap();
-        assert_mr_eq!(
-            &ret[0],
-            &rc_base.add_usize(4).unwrap(),
-            "range_check_ptr mismatch for sqrt({value})"
-        );
+        assert_mr_eq(&ret[0], &rc_base.add_usize(4).unwrap());
 
         let expected_root = value.sqrt();
-        assert_mr_eq!(
-            &ret[1],
-            &expected_root,
-            "sqrt result mismatch for value={value}"
-        );
+        assert_mr_eq(&ret[1], &expected_root);
     }
 }
 
@@ -907,7 +879,7 @@ fn test_horner_eval(mut runner: CairoRunner, #[case] n: usize) {
         .map(|(i, coef)| coef * point.modpow(&BigUint::from(i), prime))
         .fold(BigUint::zero(), |acc, x| (acc + x) % prime);
 
-    assert_mr_eq!(&ret[0], &expected);
+    assert_mr_eq(&ret[0], &expected);
 }
 
 // ===================== test_is_quad_residue =====================
@@ -933,11 +905,7 @@ fn test_is_quad_residue(mut runner: CairoRunner, #[case] x: Option<BigUint>) {
     let ret = runner.vm.get_return_values(1).unwrap();
 
     let expected = is_quad_residue_mod_prime(&x);
-    assert_mr_eq!(
-        &ret[0],
-        expected,
-        "is_quad_residue({x}) should return {expected}"
-    );
+    assert_mr_eq(&ret[0], expected);
 
     // Test is_quad_residue(3 * x)
     // 3 is not a quadratic residue modulo PRIME
@@ -956,9 +924,5 @@ fn test_is_quad_residue(mut runner: CairoRunner, #[case] x: Option<BigUint>) {
     } else {
         1 // x is not QR, 3 is not QR, so 3*x is QR (product of two non-QR is QR)
     };
-    assert_mr_eq!(
-        &ret2[0],
-        expected2,
-        "is_quad_residue(3 * {x}) should return {expected2}"
-    );
+    assert_mr_eq(&ret2[0], expected2);
 }
