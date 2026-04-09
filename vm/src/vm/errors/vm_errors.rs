@@ -141,9 +141,6 @@ pub enum VirtualMachineError {
     InvalidBlake2sFlags(u128),
     #[error("QM31 add mul opcode invalid flags {0}")]
     InvalidQM31AddMulFlags(u128),
-    #[cfg(feature = "test_utils")]
-    #[error("dummy vm error for testing")]
-    Dummy,
 }
 
 #[cfg(test)]

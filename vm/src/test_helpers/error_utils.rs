@@ -48,17 +48,6 @@ pub fn expect_ok(res: &Result<(), CairoRunError>) {
     assert_vm_result!(res, ok);
 }
 
-/// Asserts that the result is a `VirtualMachineError` satisfying `predicate`.
-fn expect_vm_error(
-    res: &Result<(), CairoRunError>,
-    predicate: impl Fn(&VirtualMachineError) -> bool,
-) {
-    assert_vm_result!(
-        res,
-        err CairoRunError::VmException(VmException { inner_exc, .. }) if predicate(inner_exc)
-    );
-}
-
 /// Asserts that the result is a `HintError` satisfying `predicate`.
 fn expect_hint_error(res: &Result<(), CairoRunError>, predicate: impl Fn(&HintError) -> bool) {
     assert_vm_result!(
@@ -80,16 +69,24 @@ pub fn expect_assert_not_equal_fail(res: &Result<(), CairoRunError>) {
     expect_hint_error(res, |e| matches!(e, HintError::AssertNotEqualFail(_)));
 }
 
-/// Asserts that the result is `VirtualMachineError::DiffTypeComparison`.
+/// Asserts that the result is `VirtualMachineError::DiffTypeComparison` wrapped in a hint.
 pub fn expect_diff_type_comparison(res: &Result<(), CairoRunError>) {
-    expect_vm_error(res, |e| {
-        matches!(e, VirtualMachineError::DiffTypeComparison(_))
+    expect_hint_error(res, |e| {
+        matches!(
+            e,
+            HintError::Internal(VirtualMachineError::DiffTypeComparison(_))
+        )
     });
 }
 
-/// Asserts that the result is `VirtualMachineError::DiffIndexComp`.
+/// Asserts that the result is `VirtualMachineError::DiffIndexComp` wrapped in a hint.
 pub fn expect_diff_index_comp(res: &Result<(), CairoRunError>) {
-    expect_vm_error(res, |e| matches!(e, VirtualMachineError::DiffIndexComp(_)));
+    expect_hint_error(res, |e| {
+        matches!(
+            e,
+            HintError::Internal(VirtualMachineError::DiffIndexComp(_))
+        )
+    });
 }
 
 /// Asserts that the result is `HintError::ValueOutside250BitRange`.
@@ -152,18 +149,6 @@ mod tests {
         }))
     }
 
-    /// Wraps a `VirtualMachineError` in `CairoRunError::VmException` directly.
-    #[allow(clippy::result_large_err)]
-    fn vm_err(vm_error: VirtualMachineError) -> Result<(), CairoRunError> {
-        Err(CairoRunError::VmException(VmException {
-            pc: Relocatable::default(),
-            inst_location: None,
-            inner_exc: vm_error,
-            error_attr_value: None,
-            traceback: None,
-        }))
-    }
-
     /// `assert_vm_result!(ok)` does not panic on `Ok`.
     #[test]
     fn assert_vm_result_ok_passes() {
@@ -204,14 +189,14 @@ mod tests {
     )]
     #[case::diff_type_comparison(
         expect_diff_type_comparison,
-        vm_err(VirtualMachineError::DiffTypeComparison(Box::new((
+        hint_err(HintError::Internal(VirtualMachineError::DiffTypeComparison(Box::new((
             MaybeRelocatable::from(0),
             MaybeRelocatable::from((0, 0)),
-        ))))
+        )))))
     )]
     #[case::diff_index_comp(
         expect_diff_index_comp,
-        vm_err(VirtualMachineError::DiffIndexComp(Box::default()))
+        hint_err(HintError::Internal(VirtualMachineError::DiffIndexComp(Box::default())))
     )]
     #[case::hint_value_outside_250_bit_range(
         expect_hint_value_outside_250_bit_range,
@@ -287,6 +272,8 @@ mod tests {
     #[rstest]
     #[case::hint_assert_not_zero(expect_hint_assert_not_zero)]
     #[case::assert_not_equal_fail(expect_assert_not_equal_fail)]
+    #[case::diff_type_comparison(expect_diff_type_comparison)]
+    #[case::diff_index_comp(expect_diff_index_comp)]
     #[case::hint_value_outside_250_bit_range(expect_hint_value_outside_250_bit_range)]
     #[case::non_le_felt252(expect_non_le_felt252)]
     #[case::assert_lt_felt252(expect_assert_lt_felt252)]
@@ -297,13 +284,5 @@ mod tests {
     #[should_panic(expected = "Unexpected error variant")]
     fn hint_checker_panics_on_dummy_hint_error(#[case] checker: VmCheck<()>) {
         checker(&hint_err(HintError::Dummy));
-    }
-
-    #[rstest]
-    #[case::diff_type_comparison(expect_diff_type_comparison)]
-    #[case::diff_index_comp(expect_diff_index_comp)]
-    #[should_panic(expected = "Unexpected error variant")]
-    fn vm_checker_panics_on_dummy_vm_error(#[case] checker: VmCheck<()>) {
-        checker(&vm_err(VirtualMachineError::Dummy));
     }
 }
