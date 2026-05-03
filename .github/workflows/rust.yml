@@ -47,7 +47,6 @@ jobs:
         - cairo_bench_programs
         - cairo_proof_programs
         - cairo_test_programs
-        - cairo_test_suite_programs
         - cairo_1_test_contracts
         - cairo_2_test_contracts
     name: Build Cairo programs
@@ -88,8 +87,7 @@ jobs:
         && matrix.program-target != 'cairo_2_test_contracts'
       run: |
           make python-deps
-          . cairo-vm-env/bin/activate
-          echo PATH=$PATH >> $GITHUB_ENV
+          echo "$(pwd)/cairo-vm-env/bin" >> $GITHUB_PATH
 
     - name: Install cairo 1 compiler
       if: steps.cache-programs.outputs.cache-hit != 'true' && matrix.program-target == 'cairo_1_test_contracts'
@@ -101,7 +99,9 @@ jobs:
 
     - name: Build programs
       if: steps.cache-programs.outputs.cache-hit != 'true'
-      run: make -j ${{ matrix.program-target }}
+      run: |
+        [ -d cairo-vm-env ] && . cairo-vm-env/bin/activate || true
+        make -j ${{ matrix.program-target }}
 
   # NOTE: used to reduce the amount of cache steps we need in later jobs
   # TODO: remove this cache once the workflow finishes
@@ -135,12 +135,6 @@ jobs:
       with:
         path: ${{ env.CAIRO_PROGRAMS_PATH }}
         key: cairo_bench_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
-        fail-on-cache-miss: true
-    - name: Fetch cairo test suite programs
-      uses: actions/cache/restore@v3
-      with:
-        path: ${{ env.CAIRO_PROGRAMS_PATH }}
-        key: cairo_test_suite_programs-cache-${{ hashFiles('cairo_programs/**/*.cairo', 'vm/src/tests/cairo_test_suite/**/*.cairo', 'Makefile', 'requirements.txt') }}
         fail-on-cache-miss: true
     - name: Fetch test contracts (Cairo 1)
       uses: actions/cache/restore@v3
