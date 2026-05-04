@@ -66,13 +66,10 @@ fn runner() -> CairoRunner {
 
 #[rstest]
 // Case: value=7
-// Expected: Success.
 #[case(Some(BigUint::from(7u64)), expect_ok)]
 // Case: value=random
-// Expected: Success.
 #[case::random(None, expect_ok)]
 // Case: value=0
-// Expected: Error.
 #[case(Some(BigUint::zero()), expect_hint_assert_not_zero)]
 fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<()>) {
     let value = match value {
@@ -94,11 +91,9 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 #[rstest]
 // Not equal integers
 // Case: a=3, b=7
-// Expected: Success.
 #[case::not_equal_ints(MaybeRelocatable::from(3), MaybeRelocatable::from(7), expect_ok)]
 // Not equal relocatables (same segment, different offset)
 // Case: a=(2, 5), b=(2, 10)
-// Expected: Success.
 #[case::not_equal_relocs(
     MaybeRelocatable::from((2, 5)),
     MaybeRelocatable::from((2, 10)),
@@ -106,7 +101,6 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 )]
 // Equal integers
 // Case: a=5, b=5
-// Expected: Error.
 #[case::equal_ints(
     MaybeRelocatable::from(5),
     MaybeRelocatable::from(5),
@@ -114,7 +108,6 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 )]
 // Equal relocatables
 // Case: a=(1, 5), b=(1, 5)
-// Expected: Error.
 #[case::equal_relocs(
     MaybeRelocatable::from((1, 5)),
     MaybeRelocatable::from((1, 5)),
@@ -122,7 +115,6 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 )]
 // Non-comparable: relocatable vs int
 // Case: a=(1, 5), b=0
-// Expected: Error.
 #[case::non_comparable_reloc_vs_int(
    MaybeRelocatable::from((1, 5)),
     MaybeRelocatable::from(0),
@@ -130,7 +122,6 @@ fn test_assert_not_zero(#[case] value: Option<BigUint>, #[case] check: VmCheck<(
 )]
 // Non-comparable: different segments
 // Case: a=(1, 5), b=(2, 3)
-// Expected: Error.
 #[case::non_comparable_diff_segments(
     MaybeRelocatable::from((1, 5)),
    MaybeRelocatable::from((2, 3)),
@@ -152,26 +143,22 @@ fn test_assert_not_equal(
 #[rstest]
 // Valid cases (should pass)
 // Case: value=0
-// Expected: Success.
 #[case::zero(BigUint::zero(), expect_ok)]
 // Case: value=1
-// Expected: Success.
 #[case::one(BigUint::one(), expect_ok)]
 // Case: value=(2^250)-1
-// Expected: Success.
 #[case::max_valid(BigUint::from(2u64).pow(250) - BigUint::one(), expect_ok)]
 // Invalid cases (should fail)
 // Case: value=2^250
-// Expected: Error.
 #[case::at_boundary(BigUint::from(2u64).pow(250), expect_hint_value_outside_250_bit_range)]
 // Case: value=(2^250)+1
-// Expected: Error.
-#[case::above_boundary(BigUint::from(2u64).pow(250) + BigUint::one(), expect_hint_value_outside_250_bit_range)]
+#[case::above_boundary(
+    BigUint::from(2u64).pow(250) + BigUint::one(),
+    expect_hint_value_outside_250_bit_range
+)]
 // Case: value=2^251
-// Expected: Error.
 #[case::way_above(BigUint::from(2u64).pow(251), expect_hint_value_outside_250_bit_range)]
 // Case: value=PRIME-1
-// Expected: Error.
 #[case::near_prime(&*CAIRO_PRIME - BigUint::one(), expect_hint_value_outside_250_bit_range)]
 fn test_assert_250_bit(
     mut runner: CairoRunner,
@@ -196,55 +183,10 @@ fn test_assert_250_bit(
 // ===================== test_split_felt =====================
 
 #[rstest]
-// Case: idx=0
-// Expected: Success.
-#[case::idx_0(0)]
-// Case: idx=1
-// Expected: Success.
-#[case::idx_1(1)]
-// Case: idx=2
-// Expected: Success.
-#[case::idx_2(2)]
-// Case: idx=3
-// Expected: Success.
-#[case::idx_3(3)]
-// Case: idx=4
-// Expected: Success.
-#[case::idx_4(4)]
-// Case: idx=5
-// Expected: Success.
-#[case::idx_5(5)]
-// Case: idx=6
-// Expected: Success.
-#[case::idx_6(6)]
-// Case: idx=7
-// Expected: Success.
-#[case::idx_7(7)]
-// Case: idx=8
-// Expected: Success.
-#[case::idx_8(8)]
-// Case: idx=9
-// Expected: Success.
-#[case::idx_9(9)]
-// Case: idx=10
-// Expected: Success.
-#[case::idx_10(10)]
-// Case: idx=11
-// Expected: Success.
-#[case::idx_11(11)]
-// Case: idx=12
-// Expected: Success.
-#[case::idx_12(12)]
-// Case: idx=13
-// Expected: Success.
-#[case::idx_13(13)]
-// Case: idx=14
-// Expected: Success.
-#[case::idx_14(14)]
-// Case: idx=15
-// Expected: Success.
-#[case::idx_15(15)]
-fn test_split_felt(mut runner: CairoRunner, #[case] idx: usize) {
+fn test_split_felt(
+    mut runner: CairoRunner,
+    #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] idx: usize,
+) {
     let mask_128 = BigUint::from(2u64).pow(128) - BigUint::one();
     let value = &INTERESTING_FELTS[idx];
 
@@ -329,19 +271,14 @@ fn test_assert_lt_felt(
 
 #[rstest]
 // Case: value_case=17
-// Expected: Success.
 #[case(BigInt::from(17), expect_ok)]
 // Case: value_case=-42
-// Expected: Success.
 #[case(BigInt::from(-42), expect_ok)]
 // Case: value_case=0
-// Expected: Success.
 #[case(BigInt::from(0), expect_ok)]
 // Case: value_case=RC_BOUND
-// Expected: Error.
 #[case(BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 // Case: value_case=-RC_BOUND
-// Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 fn test_abs_value(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check: VmCheck<()>) {
     let rc_base = runner
@@ -368,19 +305,14 @@ fn test_abs_value(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] c
 // ===================== test_sign =====================
 #[rstest]
 // Case: value_case=17
-// Expected: Success.
 #[case(BigInt::from(17), expect_ok)]
 // Case: value_case=-42
-// Expected: Success.
 #[case(BigInt::from(-42), expect_ok)]
 // Case: value_case=0
-// Expected: Success.
 #[case(BigInt::from(0), expect_ok)]
 // Case: value_case=RC_BOUND
-// Expected: Error.
 #[case(BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 // Case: value_case=-RC_BOUND
-// Expected: Error.
 #[case(-BigInt::from(RC_BOUND.clone()), expect_hint_value_outside_valid_range)]
 fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check: VmCheck<()>) {
     let rc_base = runner
@@ -424,7 +356,6 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
 #[rstest]
 // 1) q=1333, div=17, r=3
 // Case: q=1333, div=17, r=3
-// Expected: Success.
 #[case::case_1_basic(
     Some(BigUint::from(1333u64)),
     Some(BigUint::from(17u64)),
@@ -433,7 +364,6 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
 )]
 // 2) q=RC_BOUND-1, div=MAX_DIV, r=MAX_DIV-1
 // Case: q=RC_BOUND-1, div=MAX_DIV, r=MAX_DIV-1
-// Expected: Success.
 #[case::case_2_max_values(
     Some(&*RC_BOUND - BigUint::one()),
     Some(MAX_DIV.clone()),
@@ -442,7 +372,6 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
 )]
 // 3) q=random, div=MAX_DIV, r=0
 // Case: q=random, div=MAX_DIV, r=0
-// Expected: Success.
 #[case::case_3_random_q(
     None,
     Some(MAX_DIV.clone()),
@@ -451,7 +380,6 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
 )]
 // 4) q=random, div=MAX_DIV, r=MAX_DIV-1
 // Case: q=random, div=MAX_DIV, r=MAX_DIV-1
-// Expected: Success.
 #[case::case_4_random_q(
     None,
     Some(MAX_DIV.clone()),
@@ -460,7 +388,6 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
 )]
 // 5) q=random, div=MAX_DIV, r=random
 // Case: q=random, div=MAX_DIV, r=random
-// Expected: Success.
 #[case::case_5_random_q_and_r(
     None,
     Some(MAX_DIV.clone()),
@@ -469,11 +396,9 @@ fn test_sign(mut runner: CairoRunner, #[case] value_case: BigInt, #[case] check:
 )]
 // 6) q=random, div=random, r=random
 // Case: q=random, div=random, r=random
-// Expected: Success.
 #[case::case_6_all_random(None, None, None, expect_ok)]
 // 7) q=1, div=MAX_DIV+1, r=random -> expected error.
 // Case: q=1, div=MAX_DIV+1, r=random
-// Expected: Error.
 #[case::case_7_invalid_div(
     Some(BigUint::one()),
     Some(&*MAX_DIV + BigUint::one()),
@@ -539,7 +464,6 @@ fn test_unsigned_div_rem(
 // ===================== test_signed_div_rem =====================
 #[rstest]
 // Case: q=1333, div=17, r=3, bound=random in chosen range [q+1,RC_BOUND/2])
-// Expected: Success.
 #[case::basic(
     Some(BigInt::from(1333)),
     Some(BigUint::from(17u64)),
@@ -548,7 +472,6 @@ fn test_unsigned_div_rem(
     expect_ok
 )]
 // Case: q=-1333, div=17, r=3, bound=random in chosen range [-q,RC_BOUND/2])
-// Expected: Success.
 #[case::negative_basic(
     Some(BigInt::from(-1333)),
     Some(BigUint::from(17u64)),
@@ -557,7 +480,6 @@ fn test_unsigned_div_rem(
     expect_ok
 )]
 // Case: q=RC_BOUND/2-1, div=MAX_DIV, r=MAX_DIV-1, bound=random in chosen range [q+1,RC_BOUND/2])
-// Expected: Success.
 #[case::max_pos(
     Some(BigInt::from(&*RC_BOUND / BigUint::from(2u64) - BigUint::one())),
     Some(MAX_DIV.clone()),
@@ -566,7 +488,6 @@ fn test_unsigned_div_rem(
     expect_ok
 )]
 // Case: q=-(RC_BOUND/2)+1, div=MAX_DIV, r=0, bound=random in chosen range [-q,RC_BOUND/2])
-// Expected: Success.
 #[case::max_neg(
     Some(-(BigInt::from(&*RC_BOUND / BigUint::from(2u64))) + BigInt::one()),
     Some(MAX_DIV.clone()),
@@ -576,15 +497,26 @@ fn test_unsigned_div_rem(
 )]
 // Case: q=random, div=MAX_DIV, r=0, bound=random in chosen range ([q+1,RC_BOUND/2] or
 // [-q,RC_BOUND/2]) Expected: Success.
-#[case::random_q_max_div_r_zero(None, Some(MAX_DIV.clone()), Some(BigUint::zero()), None, expect_ok)]
+#[case::random_q_max_div_r_zero(
+    None,
+    Some(MAX_DIV.clone()),
+    Some(BigUint::zero()),
+    None,
+    expect_ok
+)]
 // Case: q=random, div=MAX_DIV, r=MAX_DIV-1, bound=random in chosen range ([q+1,RC_BOUND/2] or
 // [-q,RC_BOUND/2]) Expected: Success.
-#[case::random_q_max_div_r_max(None, Some(MAX_DIV.clone()), Some(&*MAX_DIV - BigUint::one()), None, expect_ok)]
+#[case::random_q_max_div_r_max(
+    None,
+    Some(MAX_DIV.clone()),
+    Some(&*MAX_DIV - BigUint::one()),
+    None,
+    expect_ok
+)]
 // Case: q=random, div=MAX_DIV, r=random, bound=random in chosen range ([q+1,RC_BOUND/2] or
 // [-q,RC_BOUND/2]) Expected: Success.
 #[case::random_q_max_div_random_r(None, Some(MAX_DIV.clone()), None, None, expect_ok)]
 // Case: q=RC_BOUND/2-1, div=random, r=random, bound=RC_BOUND/2
-// Expected: Success.
 #[case::bound_eq_half_pos_q(
     Some(BigInt::from(&*RC_BOUND / BigUint::from(2u64) - BigUint::one())),
     None,
@@ -593,7 +525,6 @@ fn test_unsigned_div_rem(
     expect_ok
 )]
 // Case: q=-RC_BOUND/2, div=random, r=random, bound=RC_BOUND/2
-// Expected: Success.
 #[case::bound_eq_half_neg_q(
     Some(-BigInt::from(&*RC_BOUND / BigUint::from(2u64))),
     None,
@@ -602,7 +533,6 @@ fn test_unsigned_div_rem(
     expect_ok
 )]
 // Case: q=1, div=MAX_DIV+1, r=random, bound=random in chosen range [q+1,RC_BOUND/2])
-// Expected: Error.
 #[case::invalid_div(
     Some(BigInt::one()),
     Some(&*MAX_DIV + BigUint::one()),
@@ -611,7 +541,6 @@ fn test_unsigned_div_rem(
     expect_hint_out_of_valid_range
 )]
 // Case: q=random, div=random, r=random, bound=RC_BOUND/2+1
-// Expected: Error.
 #[case::invalid_bound(
     None,
     None,
@@ -714,10 +643,8 @@ fn test_signed_div_rem(
     expect_ok
 )]
 // Case: value=0x1234FCDA, n=10, base=16, bound=15, expected_output=random
-// Expected: Error.
 #[case::out_of_bound_limb(0x1234FCDA, 10, 16, 15, None, expect_split_int_limb_out_of_range)]
 // Case: value=0xAAA, n=3, base=16, bound=11, expected_output=vec![0xA, 0xA, 0xA]
-// Expected: Success.
 #[case::exact_fit(
     0xAAA,
     3,
@@ -727,10 +654,8 @@ fn test_signed_div_rem(
     expect_ok
 )]
 // Case: value=0xAAA, n=3, base=16, bound=10, expected_output=random
-// Expected: Error.
 #[case::bound_too_small(0xAAA, 3, 16, 10, None, expect_split_int_limb_out_of_range)]
 // Case: value=0xAAA, n=2, base=16, bound=16, expected_output=random
-// Expected: Error.
 #[case::value_out_of_range(0xAAA, 2, 16, 16, None, expect_split_int_not_zero)]
 fn test_split_int(
     mut runner: CairoRunner,
@@ -775,47 +700,27 @@ fn test_split_int(
 // ===================== test_sqrt =====================
 
 #[rstest]
-// Case: value=0
-// Expected: Success.
-#[case::zero(Some(BigUint::zero()), expect_ok)]
-// Case: value=1
-// Expected: Success.
-#[case::one(Some(BigUint::one()), expect_ok)]
-// Case: value=2
-// Expected: Success.
-#[case::two(Some(BigUint::from(2u64)), expect_ok)]
-// Case: value=3
-// Expected: Success.
-#[case::three(Some(BigUint::from(3u64)), expect_ok)]
-// Case: value=4
-// Expected: Success.
-#[case::four(Some(BigUint::from(4u64)), expect_ok)]
-// Case: value=5
-// Expected: Success.
-#[case::five(Some(BigUint::from(5u64)), expect_ok)]
-// Case: value=6
-// Expected: Success.
-#[case::six(Some(BigUint::from(6u64)), expect_ok)]
-// Case: value=7
-// Expected: Success.
-#[case::seven(Some(BigUint::from(7u64)), expect_ok)]
-// Case: value=8
-// Expected: Success.
-#[case::eight(Some(BigUint::from(8u64)), expect_ok)]
-// Case: value=9
-// Expected: Success.
-#[case::nine(Some(BigUint::from(9u64)), expect_ok)]
+// Cases: value=0..9
+#[case::value_0(Some(BigUint::zero()), expect_ok)]
+#[case::value_1(Some(BigUint::one()), expect_ok)]
+#[case::value_2(Some(BigUint::from(2u64)), expect_ok)]
+#[case::value_3(Some(BigUint::from(3u64)), expect_ok)]
+#[case::value_4(Some(BigUint::from(4u64)), expect_ok)]
+#[case::value_5(Some(BigUint::from(5u64)), expect_ok)]
+#[case::value_6(Some(BigUint::from(6u64)), expect_ok)]
+#[case::value_7(Some(BigUint::from(7u64)), expect_ok)]
+#[case::value_8(Some(BigUint::from(8u64)), expect_ok)]
+#[case::value_9(Some(BigUint::from(9u64)), expect_ok)]
 // Case: value=(2^250)-1
-// Expected: Success.
 #[case::max_valid(Some(BigUint::from(2u64).pow(250) - BigUint::one()), expect_ok)]
 // Case: value=random
-// Expected: Success.
 #[case::random(None, expect_ok)]
 // Case: value=2^250
-// Expected: Error.
-#[case::out_of_range_2_pow_250(Some(BigUint::from(2u64).pow(250)), expect_hint_value_outside_250_bit_range)]
+#[case::out_of_range_2_pow_250(
+    Some(BigUint::from(2u64).pow(250)),
+    expect_hint_value_outside_250_bit_range
+)]
 // Case: value=PRIME-1
-// Expected: Error.
 #[case::out_of_range_prime_minus_one(
     Some(&*CAIRO_PRIME - BigUint::one()),
     expect_hint_value_outside_250_bit_range
@@ -848,10 +753,8 @@ fn test_sqrt(mut runner: CairoRunner, #[case] value: Option<BigUint>, #[case] ch
 
 #[rstest]
 // Case: n=0
-// Expected: Success.
 #[case::zero_coefficients(0)]
 // Case: n=16
-// Expected: Success.
 #[case::sixteen_coefficients(16)]
 fn test_horner_eval(mut runner: CairoRunner, #[case] n: usize) {
     let mut rng = thread_rng();
@@ -886,10 +789,8 @@ fn test_horner_eval(mut runner: CairoRunner, #[case] n: usize) {
 
 #[rstest]
 // Case: x=0
-// Expected: Success.
 #[case::zero(Some(BigUint::zero()))]
 // Case: x=random
-// Expected: Success.
 #[case::random(None)]
 fn test_is_quad_residue(mut runner: CairoRunner, #[case] x: Option<BigUint>) {
     let prime = &*CAIRO_PRIME;
