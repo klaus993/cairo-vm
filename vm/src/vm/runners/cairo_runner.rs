@@ -57,7 +57,7 @@ use super::{
     cairo_pie::{self, CairoPie, CairoPieMetadata, CairoPieVersion},
 };
 use crate::types::instance_definitions::mod_instance_def::ModInstanceDef;
-use tracing::info;
+use tracing::{info, trace};
 
 pub const ORDERED_BUILTIN_LIST: &[BuiltinName] = &[
     BuiltinName::output,
@@ -1004,7 +1004,7 @@ impl CairoRunner {
             return Err(RunnerError::EndRunCalledTwice.into());
         }
 
-        info!("Relocating memory.");
+        trace!("Relocating memory.");
         self.vm.segments.memory.relocate_memory()?;
         self.vm.end_run(&self.exec_scopes, fill_holes)?;
 
@@ -1012,7 +1012,7 @@ impl CairoRunner {
             return Ok(());
         }
 
-        info!("Computing effective sizes of segments.");
+        trace!("Computing effective sizes of segments.");
         self.vm.segments.compute_effective_sizes();
         if self.is_proof_mode() && !disable_trace_padding {
             info!("in proof mode and enabling trace padding, running until next power of 2.");
