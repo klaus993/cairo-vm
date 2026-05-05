@@ -12,6 +12,7 @@ Both branches support Stwo prover opcodes (Blake2s, QM31) since v2.0.0.
 
 #### Upcoming Changes
 * feat: add math Cairo test suite under `vm/src/tests/cairo_test_suite` using the `test_utils` feature flag [#2379](https://github.com/starkware-libs/cairo-vm/pull/2379)
+* fix: decrease spamming logs level to trace [#2385](https://github.com/starkware-libs/cairo-vm/pull/2385)
 
 * feat: add `test_helpers` module (`error_utils`, `test_utils`) with `assert_mr_eq`, `load_cairo_program!` macro and `expect_*` error checkers, behind `test_utils` feature flag [#2381](https://github.com/starkware-libs/cairo-vm/pull/2381)
 

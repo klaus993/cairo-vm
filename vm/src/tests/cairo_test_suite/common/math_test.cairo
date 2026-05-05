@@ -1,3 +1,4 @@
+// Compiled Cairo program used by cairo_test_suite/common tests.
 %builtins range_check
 
 from starkware.cairo.common.math import (
